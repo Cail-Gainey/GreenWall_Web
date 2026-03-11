@@ -13,6 +13,16 @@ export interface ApiResult<T> {
 }
 
 /**
+ * @description 分页结果模型。
+ */
+export interface PageResult<T> {
+  total: string
+  pageIndex: number
+  pageSize: number
+  items: T[]
+}
+
+/**
  * @description 发送验证码请求。
  */
 export interface SendCodeDto {
@@ -41,13 +51,28 @@ export interface UserCreateDto {
   phone?: string
   sex?: number
   remark?: string
+  roleIds?: string[]
 }
 
 /**
- * @description 用户信息响应。
+ * @description 更新用户请求。
  */
-export interface UserDto {
-  id: number
+export interface UserUpdateDto {
+  id: string
+  nickName?: string
+  avatar?: string
+  email?: string
+  phone?: string
+  sex?: number
+  status?: number
+  remark?: string
+}
+
+/**
+ * @description 用户列表项。
+ */
+export interface UserListItemDto {
+  id: string
   account: string
   nickName?: string
   avatar?: string
@@ -58,6 +83,36 @@ export interface UserDto {
   createTime: string
   lastLoginTime?: string
   remark?: string
+  roles: string[]
+}
+
+/**
+ * @description 用户信息响应。
+ */
+export interface UserDto {
+  id: string
+  account: string
+  nickName?: string
+  avatar?: string
+  email?: string
+  phone?: string
+  sex: number
+  status: number
+  createTime: string
+  lastLoginTime?: string
+  remark?: string
+  roles: string[]
+  permissions: string[]
+}
+
+/**
+ * @description 用户分页查询参数。
+ */
+export interface UserQueryDto {
+  pageIndex?: number
+  pageSize?: number
+  keyword?: string
+  status?: number
 }
 
 /**
@@ -96,7 +151,7 @@ export interface ResetPasswordDto {
  */
 export interface TokenDto {
   token: string
-  expiresAt: number
+  expiresAt: string
 }
 
 /**
@@ -105,4 +160,114 @@ export interface TokenDto {
 export interface CaptchaResultDto {
   captchaId: string
   imageBase64: string
+}
+
+// ========== RBAC 权限相关 ==========
+
+/**
+ * @description 角色信息响应。
+ */
+export interface RoleDto {
+  id: string
+  roleName: string
+  roleCode: string
+  sort: number
+  status: number
+  remark?: string
+  createTime: string
+  menuIds?: string[]
+}
+
+/**
+ * @description 创建角色请求。
+ */
+export interface RoleCreateDto {
+  roleName: string
+  roleCode: string
+  sort: number
+  status: number
+  remark?: string
+  menuIds?: string[]
+}
+
+/**
+ * @description 更新角色请求。
+ */
+export interface RoleUpdateDto {
+  id: string
+  roleName: string
+  roleCode: string
+  sort: number
+  status: number
+  remark?: string
+  menuIds?: string[]
+}
+
+/**
+ * @description 菜单信息响应。
+ */
+export interface MenuDto {
+  id: string
+  parentId: string
+  menuName: string
+  menuType: number
+  path?: string
+  component?: string
+  permission?: string
+  icon?: string
+  sort: number
+  visible: boolean
+  status: number
+  remark?: string
+  createTime: string
+}
+
+/**
+ * @description 树形菜单响应。
+ */
+export interface MenuTreeDto {
+  id: string
+  parentId: string
+  menuName: string
+  menuType: number
+  path?: string
+  component?: string
+  permission?: string
+  icon?: string
+  sort: number
+  visible: boolean
+  status: number
+  children: MenuTreeDto[]
+}
+
+/**
+ * @description 创建菜单请求。
+ */
+export interface MenuCreateDto {
+  parentId: string
+  menuName: string
+  menuType: number
+  path?: string
+  component?: string
+  permission?: string
+  icon?: string
+  sort: number
+  visible: boolean
+  status: number
+  remark?: string
+}
+
+/**
+ * @description 更新菜单请求。
+ */
+export interface MenuUpdateDto extends MenuCreateDto {
+  id: string
+}
+
+/**
+ * @description 给用户分配角色请求。
+ */
+export interface AssignUserRolesDto {
+  userId: string
+  roleIds: string[]
 }

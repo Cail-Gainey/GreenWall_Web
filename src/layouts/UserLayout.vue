@@ -1,22 +1,22 @@
 <script setup lang="ts">
 /**
- * @file 用户端布局：负责登录态恢复与认证弹窗控制。
+ * @file 用户端布局：Naive UI Layout + 认证弹窗。
  */
 import { ref, onMounted } from 'vue'
-import AppLayout from './AppLayout.vue'
+import { useRouter } from 'vue-router'
+import { NLayout, NLayoutHeader, NLayoutContent } from 'naive-ui'
 import Header from '../components/Header.vue'
 import AuthDialog from '../components/AuthDialog.vue'
 import { getMe } from '../api/auth'
+import { usePermissionStore } from '../stores/permission'
 import type { UserDto } from '../api/types'
 
 const showAuthDialog = ref(false)
 const currentUser = ref<UserDto | null>(null)
+const permissionStore = usePermissionStore()
+const router = useRouter()
 
-/**
- * @description 启动时恢复缓存用户并校验 token。
- */
 onMounted(async () => {
-  // 优先从缓存恢复
   const stored = localStorage.getItem('user')
   if (stored) {
     try {
@@ -25,58 +25,78 @@ onMounted(async () => {
       currentUser.value = null
     }
   }
-  // 有 token 时通过接口刷新用户信息
+
   const token = localStorage.getItem('token')
   if (token) {
     try {
       const res = await getMe()
       currentUser.value = res.data.data
       localStorage.setItem('user', JSON.stringify(res.data.data))
+      if (!permissionStore.isLoaded.value) {
+        await permissionStore.loadPermission()
+      }
     } catch {
-      // token 失效，清除登录态
       currentUser.value = null
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+      permissionStore.reset()
     }
   }
 })
 
-/**
- * @description 登录成功后更新当前用户并关闭弹窗。
- * @param {UserDto} user 当前登录用户。
- */
-function onLoggedIn(user: UserDto) {
+async function onLoggedIn(user: UserDto) {
   currentUser.value = user
   showAuthDialog.value = false
+  await permissionStore.loadPermission()
+  if (permissionStore.roles.value.includes('admin')) {
+    router.push('/admin')
+  } else {
+    router.push('/')
+  }
 }
 
-/**
- * @description 退出登录并清理本地缓存。
- */
 function onLogout() {
   currentUser.value = null
   localStorage.removeItem('token')
   localStorage.removeItem('user')
+  permissionStore.reset()
 }
 </script>
 
 <template>
-  <AppLayout>
-    <template #header>
+  <n-layout class="user-layout">
+    <n-layout-header bordered>
       <Header
         :user="currentUser"
         @open-auth="showAuthDialog = true"
         @logout="onLogout"
       />
-    </template>
-    <template #main>
+    </n-layout-header>
+    <n-layout-content class="user-content">
       <router-view></router-view>
-    </template>
-  </AppLayout>
+    </n-layout-content>
+  </n-layout>
 
-  <AuthDialog
-    v-if="showAuthDialog"
-    @close="showAuthDialog = false"
-    @logged-in="onLoggedIn"
-  />
+  <AuthDialog v-if="showAuthDialog" @close="showAuthDialog = false" @logged-in="onLoggedIn" />
 </template>
+
+<style scoped>
+.user-layout {
+  height: 100vh;
+}
+
+.user-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+:deep(.n-layout-scroll-container) {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+</style>

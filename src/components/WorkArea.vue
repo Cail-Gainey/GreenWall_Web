@@ -23,6 +23,9 @@ import ContributionGraph from './ContributionGraph.vue';
   position: relative;
   overflow: auto;
   padding: 2rem;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .workspace-card {

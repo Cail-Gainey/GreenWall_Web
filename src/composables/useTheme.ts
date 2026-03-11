@@ -90,6 +90,7 @@ export function useTheme() {
 
   return {
     currentTheme,
+    resolvedTheme,
     setTheme
   }
 }

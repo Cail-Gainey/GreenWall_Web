@@ -1,12 +1,12 @@
 <script setup lang="ts">
 /**
- * @file 管理端仪表盘视图占位。
+ * @file 管理端仪表盘视图。
  */
+import { NCard } from 'naive-ui'
 </script>
 
 <template>
-  <div style="padding: 20px;">
-    <h1>Admin Dashboard</h1>
+  <n-card title="Admin Dashboard" size="large">
     <p>Welcome to the GreenWall Administration panel.</p>
-  </div>
+  </n-card>
 </template>

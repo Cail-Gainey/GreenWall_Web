@@ -1,11 +1,11 @@
 :root {
-  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Lato', 'Segoe UI', Tahoma, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: light;
   color: #1f2937;
-  background-color: #ffffff;
+  background-color: #f6f7fb;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -72,10 +72,14 @@
   box-sizing: border-box;
 }
 
+:root, body, #app {
+  height: 100%;
+}
+
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100%;
   background-color: #ffffff;
 }
 
@@ -101,8 +105,8 @@ button:focus-visible {
 
 #app {
   width: 100vw;
-  height: 100vh;
-  display: flex;
+  height: 100%;
+  display: block;
   overflow: hidden;
 }
 

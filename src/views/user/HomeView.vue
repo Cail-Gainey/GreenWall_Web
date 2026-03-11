@@ -9,6 +9,18 @@ import Toolbar from '../../components/Toolbar.vue'
 </script>
 
 <template>
-  <WorkArea />
-  <Toolbar />
+  <div class="home-wrapper">
+    <WorkArea />
+    <Toolbar />
+  </div>
 </template>
+
+<style scoped>
+.home-wrapper {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+</style>
