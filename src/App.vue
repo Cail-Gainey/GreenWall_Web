@@ -15,16 +15,34 @@ import {
 import { useTheme } from './composables/useTheme'
 
 /**
- * @description 当前激活颜色（用于涂色网格）。
+ * @description 当前激活贡献等级（0-4）。
  */
-const activeColor = ref('#7bc96f')
+const activeLevel = ref(2)
 /**
  * @description 当前工具：画笔或橡皮擦。
  */
-const activeTool = ref('brush') // 'brush' or 'eraser'
+const activeTool = ref('brush') // 'brush' or 'eraser' or 'pattern'
+const activePattern = ref<boolean[][] | null>(null)
+const activePatternLevel = ref<number>(4)
+const activePatternRandom = ref(false)
+const clearSignal = ref(0)
+const requestClear = () => {
+  clearSignal.value++;
+}
+const fillAllSignal = ref(0)
+const requestFillAll = () => {
+  fillAllSignal.value++;
+}
 
-provide('activeColor', activeColor)
+provide('activeLevel', activeLevel)
 provide('activeTool', activeTool)
+provide('activePattern', activePattern)
+provide('activePatternLevel', activePatternLevel)
+provide('activePatternRandom', activePatternRandom)
+provide('clearSignal', clearSignal)
+provide('requestClear', requestClear)
+provide('fillAllSignal', fillAllSignal)
+provide('requestFillAll', requestFillAll)
 
 const { currentTheme, resolvedTheme } = useTheme()
 

@@ -2,20 +2,40 @@
 /**
  * @file 工具栏组件：选择画笔、橡皮擦与颜色。
  */
-import { inject, type Ref } from 'vue';
+import { inject, ref, type Ref } from 'vue';
+import { NTooltip, NIcon } from 'naive-ui';
+import PatternDialog from './PatternDialog.vue';
+import { Pen, Erase, ColorPalette, Lightning, StringText, TrashCan, PaintBrush } from '@vicons/carbon';
 
 /**
- * @description 可选颜色调色板。
+ * @description 可选贡献等级调色板（0-4）。
  */
-const colors = [
-  '#ebedf0', // light grey (empty)
-  '#c6e48b', // light green
-  '#7bc96f',
-  '#239a3b',
-  '#196127', // dark green
+const levels = [0, 1, 2, 3, 4];
+const levelColors = [
+  'var(--color-cell-empty)',
+  'var(--color-cell-level-1)',
+  'var(--color-cell-level-2)',
+  'var(--color-cell-level-3)',
+  'var(--color-cell-level-4)',
 ];
-const activeColor = inject<Ref<string>>('activeColor')!;
+const levelToColor = (level: number) => levelColors[level] ?? levelColors[0]!;
+
+const activeLevel = inject<Ref<number>>('activeLevel')!;
 const activeTool = inject<Ref<string>>('activeTool')!;
+const requestClear = inject<() => void>('requestClear')!;
+const requestFillAll = inject<() => void>('requestFillAll')!;
+const activePattern = inject<Ref<boolean[][] | null>>('activePattern')!;
+const activePatternLevel = inject<Ref<number>>('activePatternLevel')!;
+const activePatternRandom = inject<Ref<boolean>>('activePatternRandom')!;
+
+const showPatternDialog = ref(false);
+
+const handlePatternSelect = (pattern: boolean[][], level: number, random: boolean) => {
+  activePattern.value = pattern;
+  activePatternLevel.value = level;
+  activePatternRandom.value = random;
+  activeTool.value = 'pattern';
+};
 </script>
 
 <template>
@@ -23,30 +43,30 @@ const activeTool = inject<Ref<string>>('activeTool')!;
     <div class="toolbar">
       <!-- Brush and Eraser -->
       <div class="tool-group">
-        <button 
-          class="tool-btn" 
-          :class="{ active: activeTool === 'brush' }"
-          @click="activeTool = 'brush'"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
-            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
-            <path d="M2 2l7.58 7.58"></path>
-          </svg>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <button 
+              class="tool-btn" 
+              :class="{ active: activeTool === 'brush' }"
+              @click="activeTool = 'brush'"
+            >
+              <n-icon size="16"><Pen /></n-icon>
+            </button>
+          </template>
           画笔
-        </button>
-        <button 
-          class="tool-btn"
-          :class="{ active: activeTool === 'eraser' }"
-          @click="activeTool = 'eraser'"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 20H4"></path>
-            <path d="M4 16l8-8 8 8"></path>
-            <path d="M4 12V8h16v4"></path>
-          </svg>
+        </n-tooltip>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <button 
+              class="tool-btn"
+              :class="{ active: activeTool === 'eraser' }"
+              @click="activeTool = 'eraser'"
+            >
+              <n-icon size="16"><Erase /></n-icon>
+            </button>
+          </template>
           橡皮擦
-        </button>
+        </n-tooltip>
       </div>
 
       <div class="divider"></div>
@@ -54,64 +74,81 @@ const activeTool = inject<Ref<string>>('activeTool')!;
       <!-- Color Palette -->
       <div class="color-palette">
         <button 
-          v-for="color in colors" 
-          :key="color" 
+          v-for="level in levels" 
+          :key="level" 
           class="color-btn"
-          :style="{ backgroundColor: color }"
-          :class="{ 'active': activeColor === color }"
-          @click="activeColor = color"
+          :style="{ backgroundColor: levelToColor(level) }"
+          :class="{ 'active': activeLevel === level }"
+          @click="activeLevel = level"
         ></button>
       </div>
       
       <!-- Specialized Icons -->
       <div class="special-tools">
-        <button class="icon-tool">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-          </svg>
-        </button>
-        <button class="icon-tool">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 3H15"></path>
-            <path d="M10 9l-4 8a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-4-8V3"></path>
-          </svg>
-        </button>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <button 
+              class="icon-tool auto-btn" 
+              :class="{ active: activeTool === 'auto' }" 
+              @click="activeTool = 'auto'"
+            >
+              <n-icon size="16"><Lightning /></n-icon>
+            </button>
+          </template>
+          自动
+        </n-tooltip>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <button 
+              class="icon-tool random-btn" 
+              :class="{ active: activeTool === 'random' }" 
+              @click="activeTool = 'random'"
+            >
+              <n-icon size="16"><ColorPalette /></n-icon>
+            </button>
+          </template>
+          随机
+        </n-tooltip>
       </div>
 
       <div class="divider"></div>
 
       <!-- More Tools -->
       <div class="extra-tools">
-        <button class="tool-btn icon-text">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 7V4h16v3"></path>
-            <path d="M9 20h6"></path>
-            <path d="M12 4v16"></path>
-          </svg>
-          ABC
-        </button>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <button 
+              class="tool-btn" 
+              :class="{ active: activeTool === 'pattern' }"
+              @click="showPatternDialog = true"
+            >
+              <n-icon size="16"><StringText /></n-icon>
+            </button>
+          </template>
+          图案
+        </n-tooltip>
+
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <button class="tool-btn" @click="requestClear">
+              <n-icon size="16"><TrashCan /></n-icon>
+            </button>
+          </template>
+          清空
+        </n-tooltip>
         
-        <button class="icon-tool" style="color: var(--color-primary)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 13h18"></path>
-            <rect x="3" y="13" width="18" height="6" rx="2"></rect>
-            <path d="M9 5h6"></path>
-            <path d="M12 5v8"></path>
-          </svg>
-        </button>
-        
-        <button class="icon-tool" style="color: #ef4444">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 10V2h10v8"></path>
-            <rect x="13" y="2" width="8" height="8" rx="2"></rect>
-            <path d="M13 18v4"></path>
-            <path d="M15 14h6"></path>
-            <path d="M13 22h8"></path>
-          </svg>
-        </button>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <button class="icon-tool" style="color: var(--color-success)" @click="requestFillAll">
+              <n-icon size="16"><PaintBrush /></n-icon>
+            </button>
+          </template>
+          全满
+        </n-tooltip>
       </div>
 
     </div>
+    <PatternDialog v-model:show="showPatternDialog" @select="handlePatternSelect" />
   </div>
 </template>
 
@@ -146,14 +183,17 @@ const activeTool = inject<Ref<string>>('activeTool')!;
 
 .tool-btn {
   display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 6px;
   background: transparent;
   border: none;
-  padding: 6px 12px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   font-size: 0.9rem;
   color: var(--color-text-muted);
   border-radius: 8px;
+  cursor: pointer;
 }
 
 .tool-btn.active {
@@ -206,19 +246,26 @@ const activeTool = inject<Ref<string>>('activeTool')!;
   border-radius: 8px;
 }
 
-.special-tools .icon-tool:nth-child(1) {
+.auto-btn {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   color: var(--color-primary);
 }
 
-.special-tools .icon-tool:nth-child(2) {
+.auto-btn.active {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.random-btn {
   border: 1px solid var(--color-border);
   color: #8b5cf6; /* purple */
 }
 
-.icon-text {
-  font-weight: bold;
+.random-btn.active {
+  background-color: #8b5cf6;
+  color: white;
 }
+
 </style>

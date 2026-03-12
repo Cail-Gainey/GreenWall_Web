@@ -2,14 +2,19 @@
 /**
  * @file 贡献图组件：按年份渲染可绘制的日历网格。
  */
-import { ref, inject, type Ref } from 'vue';
+import { ref, inject, watch, computed, type Ref } from 'vue';
 
 const props = defineProps<{
   initialYear?: number
 }>()
 
-const activeColor = inject<Ref<string>>('activeColor');
-const activeTool = inject<Ref<string>>('activeTool');
+const activeLevel = inject<Ref<number>>('activeLevel', ref(2));
+const activeTool = inject<Ref<string>>('activeTool', ref('brush'));
+const activePattern = inject<Ref<boolean[][] | null>>('activePattern', ref(null));
+const activePatternLevel = inject<Ref<number>>('activePatternLevel', ref(4));
+const activePatternRandom = inject<Ref<boolean>>('activePatternRandom', ref(false));
+const clearSignal = inject<Ref<number>>('clearSignal', ref(0));
+const fillAllSignal = inject<Ref<number>>('fillAllSignal', ref(0));
 
 const currentYear = ref(props.initialYear || new Date().getFullYear());
 
@@ -18,12 +23,85 @@ const days = ['一', '', '三', '', '五', '', ''];
 
 interface CellData {
   date: string;
-  color: string;
+  level: number;
   isFuture: boolean;
 }
 
 const gridCols = ref<(CellData | null)[][]>([]);
 const monthPositions = ref<{ label: string; colIndex: number }[]>([]);
+const levelColors = [
+  'var(--color-cell-empty)',
+  'var(--color-cell-level-1)',
+  'var(--color-cell-level-2)',
+  'var(--color-cell-level-3)',
+  'var(--color-cell-level-4)',
+];
+const levelToColor = (level: number) => levelColors[level] ?? levelColors[0]!;
+const clampLevel = (level: number) => Math.max(0, Math.min(4, level));
+
+const previewCells = ref<Set<string>>(new Set());
+const previewRandomLevels = ref<Map<string, number>>(new Map());
+const previewEnabled = ref(true);
+const previewColor = computed(() => levelToColor(clampLevel(activePatternLevel.value)));
+
+const getPatternOffsets = (pattern: boolean[][]) => {
+  const height = pattern.length;
+  const width = pattern.reduce((max, row) => Math.max(max, row.length), 0);
+  return {
+    offsetC: Math.floor(width / 2),
+    offsetR: Math.floor(height / 2)
+  };
+};
+
+const buildPatternTargets = (anchorC: number, anchorR: number, pattern: boolean[][]) => {
+  const { offsetC, offsetR } = getPatternOffsets(pattern);
+  const next = new Set<string>();
+
+  for (let rIndex = 0; rIndex < pattern.length; rIndex++) {
+    const pRow = pattern[rIndex];
+    if (!pRow) continue;
+    for (let cIndex = 0; cIndex < pRow.length; cIndex++) {
+      if (!pRow[cIndex]) continue;
+      const targetC = anchorC + cIndex - offsetC;
+      const targetR = anchorR + rIndex - offsetR;
+      const targetCell = gridCols.value[targetC]?.[targetR];
+      if (targetCell && !targetCell.isFuture) {
+        next.add(`${targetC},${targetR}`);
+      }
+    }
+  }
+
+  return next;
+};
+
+const clearPreview = () => {
+  previewCells.value = new Set();
+  previewRandomLevels.value = new Map();
+};
+
+const updatePreview = (anchorC: number, anchorR: number) => {
+  if (!previewEnabled.value || activeTool.value !== 'pattern' || !activePattern.value) {
+    clearPreview();
+    return;
+  }
+  const targets = buildPatternTargets(anchorC, anchorR, activePattern.value);
+  previewCells.value = targets;
+  if (activePatternRandom.value) {
+    const nextLevels = new Map<string, number>();
+    targets.forEach((key) => {
+      nextLevels.set(key, Math.floor(Math.random() * 4) + 1);
+    });
+    previewRandomLevels.value = nextLevels;
+  } else {
+    previewRandomLevels.value = new Map();
+  }
+};
+
+const isPreviewCell = (c: number, r: number) => previewCells.value.has(`${c},${r}`);
+const getPreviewOverlayColor = (c: number, r: number) => {
+  const level = previewRandomLevels.value.get(`${c},${r}`);
+  return level ? levelToColor(level) : previewColor.value;
+};
 
 /**
  * @description 生成指定年份的网格数据与月份标记位置。
@@ -69,19 +147,11 @@ const generateGrid = (year: number) => {
 
     newGrid[col]![row] = {
       date: dateStr,
-      color: 'var(--color-cell-empty)', // default empty color mapped to theme
+      level: 0,
       isFuture: isFuture
     };
 
-    // Note: To mimic the existing mock data on first load for 2026, we apply some visual green boxes
-    // so the grid isn't totally empty!
-    if (year === props.initialYear || (year === 2026 && props.initialYear === undefined)) {
-        if (col > 1 && col < 15 && row > 0 && row < 6 && newGrid[col] && newGrid[col]![row]) {
-            newGrid[col]![row]!.color = '#c6e48b';
-        }
-    }
 
-    // Advance to next day
     tempDate.setDate(tempDate.getDate() + 1);
     row++;
     if (row > 6) {
@@ -97,6 +167,74 @@ const generateGrid = (year: number) => {
 // Initialize
 generateGrid(currentYear.value);
 
+/**
+ * @description 清空当前年份的全部可绘制单元格。
+ */
+const clearAll = () => {
+  gridCols.value.forEach((col) => {
+    col.forEach((cell) => {
+      if (cell && !cell.isFuture) {
+        cell.level = 0;
+      }
+    });
+  });
+};
+
+watch(clearSignal, () => {
+  clearAll();
+});
+
+/**
+ * @description 将当前年份的全部可绘制单元格设为最高等级 (4)。
+ */
+const fillAll = () => {
+  gridCols.value.forEach((col) => {
+    col.forEach((cell) => {
+      if (cell && !cell.isFuture) {
+        cell.level = 4;
+      }
+    });
+  });
+};
+
+watch(fillAllSignal, () => {
+  fillAll();
+});
+
+watch(activeTool, () => {
+  if (activeTool.value !== 'pattern') {
+    clearPreview();
+    previewEnabled.value = false;
+    return;
+  }
+  previewEnabled.value = true;
+});
+
+watch(activePattern, () => {
+  if (!activePattern.value) {
+    clearPreview();
+    return;
+  }
+  if (activeTool.value === 'pattern') {
+    previewEnabled.value = true;
+  }
+});
+
+watch(activePatternRandom, () => {
+  if (!previewCells.value.size) {
+    return;
+  }
+  if (!activePatternRandom.value) {
+    previewRandomLevels.value = new Map();
+    return;
+  }
+  const nextLevels = new Map<string, number>();
+  previewCells.value.forEach((key) => {
+    nextLevels.set(key, Math.floor(Math.random() * 4) + 1);
+  });
+  previewRandomLevels.value = nextLevels;
+});
+
 // Year switching
 /**
  * @description 切换到上一年并重建网格。
@@ -104,6 +242,7 @@ generateGrid(currentYear.value);
 const prevYear = () => {
   currentYear.value--;
   generateGrid(currentYear.value);
+  clearPreview();
 };
 
 /**
@@ -112,18 +251,29 @@ const prevYear = () => {
 const nextYear = () => {
   currentYear.value++;
   generateGrid(currentYear.value);
+  clearPreview();
 };
 
 // Painting logic
-const isMouseDown = ref(false);
+const isPointerDown = ref(false);
 
 /**
  * @description 开始涂色并立即绘制当前单元格。
  * @param {number} c 列索引。
  * @param {number} r 行索引。
  */
-const startPaint = (c: number, r: number) => {
-  isMouseDown.value = true;
+const startPaint = (c: number, r: number, event: PointerEvent) => {
+  if (event.button === 2) {
+    handleRightClick();
+    return;
+  }
+  if (event.button !== 0) {
+    return;
+  }
+  isPointerDown.value = true;
+  if (activeTool.value === 'pattern') {
+    updatePreview(c, r);
+  }
   paint(c, r);
 };
 
@@ -133,7 +283,12 @@ const startPaint = (c: number, r: number) => {
  * @param {number} r 行索引。
  */
 const hoverPaint = (c: number, r: number) => {
-  if (isMouseDown.value) {
+  if (activeTool.value === 'pattern') {
+    updatePreview(c, r);
+  } else if (previewCells.value.size) {
+    clearPreview();
+  }
+  if (isPointerDown.value) {
     paint(c, r);
   }
 };
@@ -142,7 +297,20 @@ const hoverPaint = (c: number, r: number) => {
  * @description 结束涂色。
  */
 const endPaint = () => {
-  isMouseDown.value = false;
+  isPointerDown.value = false;
+};
+
+const handlePointerLeave = () => {
+  endPaint();
+  clearPreview();
+};
+
+const handleRightClick = () => {
+  if (activeTool.value === 'pattern') {
+    previewEnabled.value = false;
+  }
+  clearPreview();
+  isPointerDown.value = false;
 };
 
 /**
@@ -152,18 +320,72 @@ const endPaint = () => {
  */
 const paint = (c: number, r: number) => {
   const cell = gridCols.value[c]?.[r];
-  if (cell && !cell.isFuture && activeTool?.value && activeColor?.value) {
-    if (activeTool.value === 'brush') {
-      cell.color = activeColor.value;
-    } else if (activeTool.value === 'eraser') {
-      cell.color = 'var(--color-cell-empty)';
+  if (!cell || cell.isFuture) {
+    return;
+  }
+  
+  // Handle single cell tools
+  if (activeTool.value !== 'pattern') {
+    if (activeTool.value === 'eraser') {
+      cell.level = 0;
+      return;
+    }
+    if (activeTool.value === 'auto') {
+      cell.level = cell.level >= 4 ? 0 : cell.level + 1;
+      return;
+    }
+    if (activeTool.value === 'random') {
+      cell.level = Math.floor(Math.random() * 4) + 1;
+      return;
+    }
+    const nextLevel = clampLevel(activeLevel.value);
+    cell.level = nextLevel;
+    return;
+  }
+
+  // Handle pattern tool stamping
+  if (activePattern.value) {
+    const pattern = activePattern.value;
+    const patternLevel = clampLevel(activePatternLevel.value);
+    const { offsetC, offsetR } = getPatternOffsets(pattern);
+
+    for (let rIndex = 0; rIndex < pattern.length; rIndex++) {
+      const pRow = pattern[rIndex];
+      if (!pRow) continue;
+      
+      for (let cIndex = 0; cIndex < pRow.length; cIndex++) {
+        if (pRow[cIndex]) {
+          const targetC = c + cIndex - offsetC;
+          const targetR = r + rIndex - offsetR;
+          
+          const targetCell = gridCols.value[targetC]?.[targetR];
+          // Only paint if the target cell exists and isn't a future date
+          if (targetCell && !targetCell.isFuture) {
+            if (activePatternRandom.value) {
+              const previewKey = `${targetC},${targetR}`;
+              const randomLevel =
+                previewRandomLevels.value.get(previewKey) ?? Math.floor(Math.random() * 4) + 1;
+              targetCell.level = randomLevel;
+            } else {
+              targetCell.level = patternLevel;
+            }
+          }
+        }
+      }
     }
   }
 };
 </script>
 
 <template>
-  <div class="contribution-graph-wrapper" @mouseup="endPaint" @mouseleave="endPaint">
+  <div
+    class="contribution-graph-wrapper"
+    @pointerup="endPaint"
+    @pointerleave="handlePointerLeave"
+    @pointercancel="handlePointerLeave"
+    @contextmenu.prevent="handleRightClick"
+    @mousedown.right.prevent="handleRightClick"
+  >
     <div class="graph-container">
       
       <div class="graph-scroll-area">
@@ -192,11 +414,11 @@ const paint = (c: number, r: number) => {
                 <div 
                   v-if="cell"
                   class="grid-cell" 
-                  :class="{ 'future-cell': cell.isFuture }"
-                  :style="{ backgroundColor: cell.color }"
+                  :class="{ 'future-cell': cell.isFuture, 'preview-cell': isPreviewCell(c, r) }"
+                  :style="{ backgroundColor: levelToColor(cell.level), '--preview-color': getPreviewOverlayColor(c, r) }"
                   :data-date="cell.date"
-                  @mousedown="startPaint(c, r)"
-                  @mouseenter="hoverPaint(c, r)"
+                  @pointerdown="startPaint(c, r, $event)"
+                  @pointerenter="hoverPaint(c, r)"
                 ></div>
                 <div v-else class="grid-cell ghost-cell"></div>
               </template>
@@ -289,6 +511,21 @@ const paint = (c: number, r: number) => {
   height: 14px;
   border-radius: 3px;
   transition: all 0.1s;
+  touch-action: none;
+}
+
+.grid-cell.preview-cell {
+  position: relative;
+}
+
+.grid-cell.preview-cell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: var(--preview-color);
+  opacity: 0.35;
+  border-radius: 3px;
+  pointer-events: none;
 }
 
 .grid-cell:not(.ghost-cell):not(.future-cell) {

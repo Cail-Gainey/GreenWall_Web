@@ -16,3 +16,10 @@ const app = createApp(App)
 app.use(router)
 setupPermissionDirective(app)
 app.mount('#app')
+
+const preventContextMenu = (event: MouseEvent) => {
+  event.preventDefault()
+}
+
+window.addEventListener('contextmenu', preventContextMenu, { capture: true })
+document.addEventListener('contextmenu', preventContextMenu, { capture: true })
