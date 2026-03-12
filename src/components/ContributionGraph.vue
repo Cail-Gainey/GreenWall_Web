@@ -2,10 +2,25 @@
 /**
  * @file 贡献图组件：按年份渲染可绘制的日历网格。
  */
-import { ref, inject, watch, computed, type Ref } from 'vue';
+import { ref, inject, watch, computed, onBeforeUnmount, type Ref } from 'vue';
 import { useGitHubStore } from '../stores/github';
-import { useDialog, NIcon, NTooltip } from 'naive-ui';
-import { Exit } from '@vicons/carbon';
+import { pushGithubContributions, getGithubPushStatus, getGithubRecentPushes } from '../api/github';
+import {
+  useDialog,
+  NIcon,
+  NTooltip,
+  NModal,
+  NForm,
+  NFormItem,
+  NInput,
+  NRadioGroup,
+  NRadioButton,
+  NButton,
+  NSelect,
+  NTag,
+  NSpace
+} from 'naive-ui';
+import { Exit, CloudUpload, Renew, ChevronLeft, ChevronRight } from '@vicons/carbon';
 
 const props = defineProps<{
   initialYear?: number
@@ -19,7 +34,17 @@ const activePatternRandom = inject<Ref<boolean>>('activePatternRandom', ref(fals
 const clearSignal = inject<Ref<number>>('clearSignal', ref(0));
 const fillAllSignal = inject<Ref<number>>('fillAllSignal', ref(0));
 
-const currentYear = ref(props.initialYear || new Date().getFullYear());
+const minYear = 2008;
+const maxYear = new Date().getFullYear();
+const clampYear = (value: number) => Math.min(Math.max(value, minYear), maxYear);
+const currentYear = ref(clampYear(props.initialYear || maxYear));
+const yearOptions = computed(() => {
+  const options = [];
+  for (let year = maxYear; year >= minYear; year--) {
+    options.push({ label: String(year), value: year });
+  }
+  return options;
+});
 
 const githubStore = useGitHubStore();
 const dialog = useDialog();
@@ -42,8 +67,283 @@ const disconnectGithub = () => {
   });
 };
 
+const showPushDialog = ref(false);
+const pushMode = ref<'create' | 'existing'>('create');
+const repoName = ref('');
+const repoFullName = ref('');
+const repoVisibility = ref<'public' | 'private'>('public');
+const pushError = ref('');
+const repoLoading = ref(false);
+const repoLoadError = ref('');
+const repoOptions = ref<{ label: string; value: string }[]>([]);
+const pushSubmitting = ref(false);
+let pushStatusTimer: number | null = null;
+const queryJobId = ref('');
+const queryLoading = ref(false);
+const showQueryDialog = ref(false);
+const recentPushes = ref<{ jobId: string; status: string; message?: string; updatedAt: string }[]>([]);
+const recentLoading = ref(false);
+const recentError = ref('');
+
+const isGraphEmpty = computed(() => {
+  for (const col of gridCols.value) {
+    for (const cell of col) {
+      if (cell && !cell.isFuture && cell.level > 0) {
+        return false;
+      }
+    }
+  }
+  return true;
+});
+
+const openPushDialog = () => {
+  if (isGraphEmpty.value) {
+    dialog.warning({
+      title: '无法推送',
+      content: '贡献图为空，请先绘制后再推送。'
+    });
+    return;
+  }
+  if (!isGithubConnected.value) {
+    dialog.warning({
+      title: '未连接 GitHub',
+      content: '请先连接 GitHub 后再推送。'
+    });
+    return;
+  }
+  pushError.value = '';
+  repoLoadError.value = '';
+  showPushDialog.value = true;
+  if (pushMode.value === 'existing') {
+    void loadRepos();
+  }
+};
+
+const closePushDialog = () => {
+  showPushDialog.value = false;
+};
+
+const loadRepos = async () => {
+  if (pushMode.value !== 'existing') {
+    return;
+  }
+  repoLoadError.value = '';
+  repoLoading.value = true;
+  const token = githubProfile.value?.accessToken;
+  if (!token) {
+    repoLoadError.value = '缺少 GitHub 授权信息';
+    repoLoading.value = false;
+    return;
+  }
+  try {
+    const res = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated&visibility=all', {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) {
+      repoLoadError.value = '获取仓库失败';
+      repoLoading.value = false;
+      return;
+    }
+    const data = await res.json();
+    repoOptions.value = (Array.isArray(data) ? data : []).map((repo: any) => ({
+      label: repo.full_name,
+      value: repo.full_name,
+    }));
+  } catch {
+    repoLoadError.value = '获取仓库失败';
+  } finally {
+    repoLoading.value = false;
+  }
+};
+
+const loadRecentPushes = async () => {
+  recentLoading.value = true;
+  recentError.value = '';
+  const login = githubLogin.value;
+  if (!login) {
+    recentError.value = '缺少 GitHub 登录名';
+    recentLoading.value = false;
+    return;
+  }
+  try {
+    const res = await getGithubRecentPushes(login);
+    recentPushes.value = res.data.data || [];
+  } catch (e: any) {
+    recentError.value = e?.message || '获取记录失败';
+  } finally {
+    recentLoading.value = false;
+  }
+};
+
+const confirmPush = async () => {
+  pushError.value = '';
+  if (pushMode.value === 'create') {
+    if (!repoName.value.trim()) {
+      pushError.value = '请输入仓库名称';
+      return;
+    }
+  } else {
+    if (!repoFullName.value.trim()) {
+      pushError.value = '请输入仓库全名（owner/repo）';
+      return;
+    }
+  }
+  const token = githubProfile.value?.accessToken;
+  if (!token) {
+    pushError.value = '缺少 GitHub 授权信息';
+    return;
+  }
+
+  const cells = [];
+  for (const col of gridCols.value) {
+    for (const cell of col) {
+      if (cell && !cell.isFuture && cell.level > 0) {
+        cells.push({ date: cell.date, level: cell.level });
+      }
+    }
+  }
+
+  if (cells.length === 0) {
+    pushError.value = '贡献图为空';
+    return;
+  }
+
+  pushSubmitting.value = true;
+  try {
+    const payload = {
+      accessToken: token,
+      githubLogin: githubLogin.value || undefined,
+      mode: pushMode.value,
+      repoName: pushMode.value === 'create' ? repoName.value.trim() : undefined,
+      repoFullName: pushMode.value === 'existing' ? repoFullName.value.trim() : undefined,
+      visibility: repoVisibility.value,
+      year: currentYear.value,
+      cells,
+    };
+    const res = await pushGithubContributions(payload);
+    showPushDialog.value = false;
+    dialog.success({
+      title: '已入队',
+      content: `任务已加入队列：${res.data.data.jobId}`,
+    });
+    startPushStatusPolling(res.data.data.jobId);
+  } catch (e: any) {
+    pushError.value = e?.message || '推送失败';
+  } finally {
+    pushSubmitting.value = false;
+  }
+};
+
+const startPushStatusPolling = (jobId: string) => {
+  if (pushStatusTimer) {
+    window.clearInterval(pushStatusTimer);
+    pushStatusTimer = null;
+  }
+  pushStatusTimer = window.setInterval(async () => {
+    try {
+      const res = await getGithubPushStatus(jobId);
+      const status = res.data.data.status;
+      if (status === 'success') {
+        window.clearInterval(pushStatusTimer!);
+        pushStatusTimer = null;
+        dialog.success({
+          title: '推送完成',
+          content: res.data.data.message || '贡献图已推送完成',
+        });
+      } else if (status === 'failed') {
+        window.clearInterval(pushStatusTimer!);
+        pushStatusTimer = null;
+        dialog.error({
+          title: '推送失败',
+          content: res.data.data.message || '推送失败，请重试',
+        });
+      }
+    } catch {
+      // ignore polling errors
+    }
+  }, 2000);
+};
+
+const queryPushStatus = async () => {
+  if (!queryJobId.value.trim()) {
+    dialog.warning({
+      title: '请输入任务 ID',
+      content: '请先输入任务 ID 再查询。'
+    });
+    return;
+  }
+  queryLoading.value = true;
+  try {
+    const res = await getGithubPushStatus(queryJobId.value.trim());
+    const status = res.data.data.status;
+    if (status === 'success') {
+      dialog.success({
+        title: '推送完成',
+        content: res.data.data.message || '贡献图已推送完成',
+      });
+    } else if (status === 'failed') {
+      dialog.error({
+        title: '推送失败',
+        content: res.data.data.message || '推送失败，请重试',
+      });
+    } else {
+      dialog.info({
+        title: '任务状态',
+        content: `当前状态：${status}`,
+      });
+    }
+  } catch (e: any) {
+    dialog.error({
+      title: '查询失败',
+      content: e?.message || '查询失败',
+    });
+  } finally {
+    queryLoading.value = false;
+  }
+};
+
+const openQueryDialog = () => {
+  showQueryDialog.value = true;
+  void loadRecentPushes();
+};
+
+onBeforeUnmount(() => {
+  if (pushStatusTimer) {
+    window.clearInterval(pushStatusTimer);
+    pushStatusTimer = null;
+  }
+});
+
+const formatStatus = (status: string) => {
+  const map: Record<string, string> = {
+    queued: '排队中',
+    running: '执行中',
+    success: '成功',
+    failed: '失败',
+  };
+  return map[status] || status;
+};
+
+const statusTagType = (status: string) => {
+  if (status === 'success') return 'success';
+  if (status === 'failed') return 'error';
+  if (status === 'running') return 'warning';
+  return 'info';
+};
+
+const formatTime = (value: string) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+};
+
 const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-const days = ['一', '', '三', '', '五', '', ''];
+// GitHub 贡献图以周日为第一行，展示周一/三/五标签
+const days = ['', '一', '', '三', '', '五', ''];
 
 interface CellData {
   date: string;
@@ -138,8 +438,8 @@ const generateGrid = (year: number) => {
   const startDate = new Date(year, 0, 1);
   const startDayOfWeek = startDate.getDay(); // 0 is Sun, 1 is Mon... 6 is Sat
   
-  // We want rows 0-6 to represent Mon-Sun
-  const startRowIndex = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+  // GitHub: rows 0-6 represent Sun-Sat
+  const startRowIndex = startDayOfWeek;
   const totalCols = Math.ceil((daysInYear + startRowIndex) / 7);
 
   const newGrid: (CellData | null)[][] = Array.from({ length: totalCols }, () => Array(7).fill(null));
@@ -264,6 +564,7 @@ watch(activePatternRandom, () => {
  * @description 切换到上一年并重建网格。
  */
 const prevYear = () => {
+  if (currentYear.value <= minYear) return;
   currentYear.value--;
   generateGrid(currentYear.value);
   clearPreview();
@@ -273,7 +574,16 @@ const prevYear = () => {
  * @description 切换到下一年并重建网格。
  */
 const nextYear = () => {
+  if (currentYear.value >= maxYear) return;
   currentYear.value++;
+  generateGrid(currentYear.value);
+  clearPreview();
+};
+
+const changeYear = (value: number) => {
+  const next = clampYear(value);
+  if (next === currentYear.value) return;
+  currentYear.value = next;
   generateGrid(currentYear.value);
   clearPreview();
 };
@@ -412,7 +722,6 @@ const paint = (c: number, r: number) => {
   >
     <div class="graph-container">
       <div class="graph-header">
-        <div class="graph-user"></div>
         <div class="graph-actions">
           <div v-if="isGithubConnected" class="github-badge">
             <div class="github-avatar">
@@ -435,6 +744,25 @@ const paint = (c: number, r: number) => {
             </n-tooltip>
           </div>
           <button v-else class="github-connect" @click="connectGithub">连接 GitHub</button>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <button class="github-push" @click="openPushDialog">
+                <n-icon size="14">
+                  <CloudUpload />
+                </n-icon>
+                推送
+              </button>
+            </template>
+            推送贡献图
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <button class="github-query" @click="openQueryDialog">
+                查询
+              </button>
+            </template>
+            查询推送任务
+          </n-tooltip>
         </div>
       </div>
       
@@ -482,11 +810,100 @@ const paint = (c: number, r: number) => {
     <div class="year-selector">
       <span class="year-label">年份:</span>
       <div class="year-control">
-        <button class="icon-btn" @click="prevYear">&lt;</button>
-        <span class="year-val">{{ currentYear }}</span>
-        <button class="icon-btn" @click="nextYear">&gt;</button>
+        <button class="icon-btn" @click="prevYear" :disabled="currentYear <= minYear">
+          <n-icon size="16"><ChevronLeft /></n-icon>
+        </button>
+        <n-select
+          :value="currentYear"
+          :options="yearOptions"
+          size="small"
+          class="year-select"
+          @update:value="changeYear"
+        />
+        <button class="icon-btn" @click="nextYear" :disabled="currentYear >= maxYear">
+          <n-icon size="16"><ChevronRight /></n-icon>
+        </button>
       </div>
     </div>
+
+    <n-modal v-model:show="showPushDialog" preset="card" title="推送贡献图" style="width: min(460px, 92vw);">
+      <n-form>
+        <n-form-item label="仓库类型">
+          <n-radio-group v-model:value="pushMode" @update:value="() => loadRepos()">
+            <n-radio-button value="create">新建仓库</n-radio-button>
+            <n-radio-button value="existing">使用现有仓库</n-radio-button>
+          </n-radio-group>
+        </n-form-item>
+        <n-form-item v-if="pushMode === 'create'" label="仓库名称">
+          <n-input v-model:value="repoName" placeholder="例如：greenwall-art" />
+        </n-form-item>
+        <n-form-item v-if="pushMode === 'create'" label="可见性">
+          <n-radio-group v-model:value="repoVisibility">
+            <n-radio-button value="public">公开</n-radio-button>
+            <n-radio-button value="private">私有</n-radio-button>
+          </n-radio-group>
+        </n-form-item>
+        <n-form-item v-else label="仓库全名">
+          <n-select
+            v-model:value="repoFullName"
+            :options="repoOptions"
+            :loading="repoLoading"
+            placeholder="选择仓库"
+            filterable
+            clearable
+          />
+        </n-form-item>
+        <n-form-item v-if="repoLoadError">
+          <div class="push-error">{{ repoLoadError }}</div>
+        </n-form-item>
+        <n-form-item v-if="pushError">
+          <div class="push-error">{{ pushError }}</div>
+        </n-form-item>
+        <n-space justify="end">
+          <n-button secondary @click="closePushDialog" :disabled="pushSubmitting">取消</n-button>
+          <n-button type="primary" @click="confirmPush" :loading="pushSubmitting">确认</n-button>
+        </n-space>
+      </n-form>
+    </n-modal>
+
+    <n-modal v-model:show="showQueryDialog" preset="card" title="查询推送任务" style="width: min(420px, 92vw);">
+      <n-form>
+        <n-form-item label="任务 ID">
+          <n-input v-model:value="queryJobId" placeholder="输入任务 ID" />
+        </n-form-item>
+        <n-form-item label="最近推送">
+          <div class="recent-list">
+            <div class="recent-header">
+              <span>列表</span>
+              <n-button size="tiny" secondary :loading="recentLoading" @click="loadRecentPushes">
+                <n-icon size="14">
+                  <Renew />
+                </n-icon>
+              </n-button>
+            </div>
+            <div v-if="recentLoading" class="recent-muted">加载中...</div>
+            <div v-else-if="recentError" class="push-error">{{ recentError }}</div>
+            <div v-else-if="recentPushes.length === 0" class="recent-muted">暂无记录</div>
+            <div v-else class="recent-items">
+              <div v-for="item in recentPushes" :key="item.jobId" class="recent-item">
+                <div class="recent-row">
+                  <span class="recent-job">任务ID: {{ item.jobId }}</span>
+                  <n-tag size="small" :type="statusTagType(item.status)">
+                    {{ formatStatus(item.status) }}
+                  </n-tag>
+                </div>
+                <div class="recent-time">{{ formatTime(item.updatedAt) }}</div>
+                <div v-if="item.message" class="recent-msg">{{ item.message }}</div>
+              </div>
+            </div>
+          </div>
+        </n-form-item>
+        <n-space justify="end">
+          <n-button secondary @click="showQueryDialog = false">取消</n-button>
+          <n-button type="primary" :loading="queryLoading" @click="queryPushStatus">查询</n-button>
+        </n-space>
+      </n-form>
+    </n-modal>
   </div>
 </template>
 
@@ -591,6 +1008,103 @@ const paint = (c: number, r: number) => {
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.github-push {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-main);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.github-push:hover {
+  background-color: var(--color-bg-light);
+}
+
+.github-query {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-main);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.github-query:hover {
+  background-color: var(--color-bg-light);
+}
+
+.push-error {
+  color: #ef4444;
+  font-size: 0.85rem;
+}
+
+.recent-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.recent-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.recent-item {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background-color: var(--color-bg-light);
+}
+
+.recent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.recent-job {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.recent-time {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+.recent-msg {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+.recent-muted {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
 }
 
 .graph-scroll-area {
@@ -703,6 +1217,7 @@ const paint = (c: number, r: number) => {
   background-color: var(--color-bg-light);
   border-radius: 8px;
   padding: 4px;
+  gap: 6px;
 }
 
 .year-control .icon-btn {
@@ -712,10 +1227,22 @@ const paint = (c: number, r: number) => {
   padding: 4px 10px;
   font-weight: bold;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .year-control .icon-btn:hover {
   color: var(--color-text-main);
+}
+
+.year-control .icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.year-select {
+  min-width: 90px;
 }
 
 .year-val {

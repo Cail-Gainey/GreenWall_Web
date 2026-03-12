@@ -116,6 +116,34 @@ export interface GitHubOAuthDto {
   accessToken: string
 }
 
+export interface GitHubPushCellDto {
+  date: string
+  level: number
+}
+
+export interface GitHubPushRequestDto {
+  accessToken: string
+  githubLogin?: string
+  mode: 'create' | 'existing'
+  repoName?: string
+  repoFullName?: string
+  visibility: 'public' | 'private'
+  year: number
+  cells: GitHubPushCellDto[]
+}
+
+export interface GitHubPushResponseDto {
+  jobId: string
+  status: string
+}
+
+export interface GitHubPushStatusDto {
+  jobId: string
+  status: string
+  message?: string
+  updatedAt: string
+}
+
 /**
  * @description 用户分页查询参数。
  */
