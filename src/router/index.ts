@@ -33,6 +33,11 @@ const router = createRouter({
       ]
     },
     {
+      path: '/oauth/callback',
+      name: 'oauth-callback',
+      component: () => import('../views/user/OAuthCallback.vue')
+    },
+    {
       path: '/admin',
       component: () => import('../layouts/AdminLayout.vue'),
       meta: { requiresAuth: true, roles: ['admin'] },

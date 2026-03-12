@@ -106,6 +106,17 @@ export interface UserDto {
 }
 
 /**
+ * @description GitHub OAuth 授权信息。
+ */
+export interface GitHubOAuthDto {
+  id: number
+  login: string
+  avatarUrl?: string
+  htmlUrl?: string
+  accessToken: string
+}
+
+/**
  * @description 用户分页查询参数。
  */
 export interface UserQueryDto {

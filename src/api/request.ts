@@ -7,8 +7,10 @@ import type { ApiResult } from './types'
 /**
  * @description 统一请求实例。
  */
+const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8888/api'
+
 const request = axios.create({
-  baseURL: '/api',
+  baseURL: apiBase,
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',

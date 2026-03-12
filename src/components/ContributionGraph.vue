@@ -3,6 +3,9 @@
  * @file 贡献图组件：按年份渲染可绘制的日历网格。
  */
 import { ref, inject, watch, computed, type Ref } from 'vue';
+import { useGitHubStore } from '../stores/github';
+import { useDialog, NIcon, NTooltip } from 'naive-ui';
+import { Exit } from '@vicons/carbon';
 
 const props = defineProps<{
   initialYear?: number
@@ -17,6 +20,27 @@ const clearSignal = inject<Ref<number>>('clearSignal', ref(0));
 const fillAllSignal = inject<Ref<number>>('fillAllSignal', ref(0));
 
 const currentYear = ref(props.initialYear || new Date().getFullYear());
+
+const githubStore = useGitHubStore();
+const dialog = useDialog();
+const githubProfile = computed(() => githubStore.profile);
+const isGithubConnected = computed(() => !!githubProfile.value);
+const githubLogin = computed(() => githubProfile.value?.login || '');
+const githubUrl = computed(() => githubProfile.value?.htmlUrl || '');
+const githubAvatar = computed(() => githubProfile.value?.avatarUrl || '');
+const connectGithub = () => {
+  const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api';
+  window.location.href = `${apiBase}/github/authorize`;
+};
+const disconnectGithub = () => {
+  dialog.warning({
+    title: '断开 GitHub 授权',
+    content: '确认断开 GitHub 授权并清除本地授权信息吗？',
+    positiveText: '断开',
+    negativeText: '取消',
+    onPositiveClick: () => githubStore.clear(),
+  });
+};
 
 const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
 const days = ['一', '', '三', '', '五', '', ''];
@@ -387,6 +411,32 @@ const paint = (c: number, r: number) => {
     @mousedown.right.prevent="handleRightClick"
   >
     <div class="graph-container">
+      <div class="graph-header">
+        <div class="graph-user"></div>
+        <div class="graph-actions">
+          <div v-if="isGithubConnected" class="github-badge">
+            <div class="github-avatar">
+              <img v-if="githubAvatar" :src="githubAvatar" alt="github" />
+              <span v-else>GH</span>
+            </div>
+            <a v-if="githubUrl" :href="githubUrl" target="_blank" rel="noreferrer" class="github-link">
+              @{{ githubLogin }}
+            </a>
+            <span v-else class="github-link">@{{ githubLogin }}</span>
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <button class="github-disconnect" @click="disconnectGithub" aria-label="断开 GitHub">
+                  <n-icon size="14">
+                    <Exit />
+                  </n-icon>
+                </button>
+              </template>
+              断开授权
+            </n-tooltip>
+          </div>
+          <button v-else class="github-connect" @click="connectGithub">连接 GitHub</button>
+        </div>
+      </div>
       
       <div class="graph-scroll-area">
         <!-- Months row -->
@@ -455,6 +505,92 @@ const paint = (c: number, r: number) => {
   padding: 1.5rem;
   margin-bottom: 2rem;
   overflow-x: auto; /* Fixes bounds overflow issue */
+}
+
+.graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.graph-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.github-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  font-size: 0.8rem;
+  color: var(--color-text-main);
+}
+
+.github-avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  overflow: hidden;
+  background-color: var(--color-bg-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.github-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.github-link {
+  color: var(--color-text-main);
+  text-decoration: none;
+}
+
+.github-link:hover {
+  text-decoration: underline;
+}
+
+.github-disconnect {
+  margin-left: 4px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 6px;
+}
+
+.github-disconnect:hover {
+  color: var(--color-text-main);
+  background-color: var(--color-bg-light);
+}
+
+.github-connect {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-main);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .graph-scroll-area {
