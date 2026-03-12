@@ -5,7 +5,7 @@ import request from './request'
 import type { ApiResult, PageResult, UserCreateDto, UserDto, UserListItemDto, UserQueryDto, UserUpdateDto } from './types'
 
 /**
- * @description 创建用户（需要 Admin 权限）。
+ * @description 创建用户（需要 sys:user:add 权限）。
  * @param {UserCreateDto} data 用户创建参数。
  */
 export function createUser(data: UserCreateDto) {
@@ -21,7 +21,7 @@ export function getUserInfo(id: string) {
 }
 
 /**
- * @description 分页查询用户列表。
+ * @description 分页查询用户列表（需要 sys:user:list 权限）。
  * @param {UserQueryDto} params 查询参数。
  */
 export function getUserPage(params: UserQueryDto) {
@@ -37,7 +37,7 @@ export function updateUser(data: UserUpdateDto) {
 }
 
 /**
- * @description 删除用户（需要 Admin 权限）。
+ * @description 删除用户（需要 sys:user:delete 权限）。
  * @param {number} id 用户 ID。
  */
 export function deleteUser(id: string) {

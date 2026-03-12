@@ -20,6 +20,7 @@ import {
   type DataTableColumns,
 } from 'naive-ui'
 import { createMenu, deleteMenu, getMenuById, getMenuTree, updateMenu } from '../../api/menu'
+import { usePermissionStore } from '../../stores/permission'
 import type { MenuCreateDto, MenuTreeDto, MenuUpdateDto } from '../../api/types'
 
 const menus = ref<MenuTreeDto[]>([])
@@ -29,6 +30,8 @@ const isError = ref(false)
 
 const showForm = ref(false)
 const formMode = ref<'create' | 'edit'>('create')
+
+const { hasPermission } = usePermissionStore()
 
 const form = ref({
   id: '',
@@ -246,30 +249,40 @@ const columns = computed<DataTableColumns<{ menu: MenuTreeDto; level: number }>>
   {
     title: '操作',
     key: 'actions',
-    render: (row) =>
-      h(
-        NSpace,
-        { size: 'small' },
-        {
-          default: () => [
-            h(
-              NButton,
-              { size: 'tiny', quaternary: true, onClick: () => openCreate(row.menu.id) },
-              { default: () => '新增子级' },
-            ),
-            h(
-              NButton,
-              { size: 'tiny', quaternary: true, onClick: () => openEdit(row.menu) },
-              { default: () => '编辑' },
-            ),
-            h(
-              NButton,
-              { size: 'tiny', quaternary: true, type: 'error', onClick: () => handleDelete(row.menu) },
-              { default: () => '删除' },
-            ),
-          ],
-        },
-      ),
+    render: (row) => {
+      const actions = []
+      if (hasPermission('sys:menu:add')) {
+        actions.push(
+          h(
+            NButton,
+            { size: 'tiny', quaternary: true, onClick: () => openCreate(row.menu.id) },
+            { default: () => '新增子级' },
+          ),
+        )
+      }
+      if (hasPermission('sys:menu:edit')) {
+        actions.push(
+          h(
+            NButton,
+            { size: 'tiny', quaternary: true, onClick: () => openEdit(row.menu) },
+            { default: () => '编辑' },
+          ),
+        )
+      }
+      if (hasPermission('sys:menu:delete')) {
+        actions.push(
+          h(
+            NButton,
+            { size: 'tiny', quaternary: true, type: 'error', onClick: () => handleDelete(row.menu) },
+            { default: () => '删除' },
+          ),
+        )
+      }
+      if (actions.length === 0) {
+        return h('span', { class: 'muted' }, '无权限')
+      }
+      return h(NSpace, { size: 'small' }, { default: () => actions })
+    },
   },
 ])
 
@@ -279,7 +292,7 @@ onMounted(fetchMenus)
 <template>
   <n-card title="菜单管理" size="large">
     <template #header-extra>
-      <n-button type="primary" @click="openCreate()">新建菜单</n-button>
+      <n-button v-permission="'sys:menu:add'" type="primary" @click="openCreate()">新建菜单</n-button>
     </template>
 
     <n-space vertical size="large">

@@ -40,12 +40,13 @@ const router = createRouter({
     {
       path: '/admin',
       component: () => import('../layouts/AdminLayout.vue'),
-      meta: { requiresAuth: true, roles: ['admin'] },
+      meta: { requiresAuth: true },
       children: [
         {
           path: '',
           name: 'admin-dashboard',
-          component: () => import('../views/admin/DashboardView.vue')
+          component: () => import('../views/admin/DashboardView.vue'),
+          meta: { permission: 'sys:dashboard' }
         },
         {
           path: 'users',
@@ -112,7 +113,11 @@ router.beforeEach(async (to) => {
   }
 
   // 检查权限标识
-  if (to.meta.permission && !hasPermission(to.meta.permission)) {
+  const requiredPerms = to.matched.reduce<string[]>((acc, r) => {
+    if (r.meta.permission) acc.push(r.meta.permission)
+    return acc
+  }, [])
+  if (requiredPerms.length > 0 && !requiredPerms.every((p) => hasPermission(p))) {
     return { name: 'forbidden' }
   }
 

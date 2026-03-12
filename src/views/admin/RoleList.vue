@@ -22,6 +22,7 @@ import {
 } from 'naive-ui'
 import { createRole, deleteRole, getAllRoles, getRoleById, updateRole } from '../../api/role'
 import { getMenuTree } from '../../api/menu'
+import { usePermissionStore } from '../../stores/permission'
 import type { MenuTreeDto, RoleCreateDto, RoleDto, RoleUpdateDto } from '../../api/types'
 
 const roles = ref<RoleDto[]>([])
@@ -32,6 +33,8 @@ const isError = ref(false)
 
 const showForm = ref(false)
 const formMode = ref<'create' | 'edit'>('create')
+
+const { hasPermission } = usePermissionStore()
 
 const form = ref({
   id: '',
@@ -214,25 +217,31 @@ const columns = computed<DataTableColumns<RoleDto>>(() => [
   {
     title: '操作',
     key: 'actions',
-    render: (row) =>
-      h(
-        NSpace,
-        { size: 'small' },
-        {
-          default: () => [
-            h(
-              NButton,
-              { size: 'tiny', quaternary: true, onClick: () => openEdit(row) },
-              { default: () => '编辑' },
-            ),
-            h(
-              NButton,
-              { size: 'tiny', quaternary: true, type: 'error', onClick: () => handleDelete(row) },
-              { default: () => '删除' },
-            ),
-          ],
-        },
-      ),
+    render: (row) => {
+      const actions = []
+      if (hasPermission('sys:role:edit')) {
+        actions.push(
+          h(
+            NButton,
+            { size: 'tiny', quaternary: true, onClick: () => openEdit(row) },
+            { default: () => '编辑' },
+          ),
+        )
+      }
+      if (hasPermission('sys:role:delete')) {
+        actions.push(
+          h(
+            NButton,
+            { size: 'tiny', quaternary: true, type: 'error', onClick: () => handleDelete(row) },
+            { default: () => '删除' },
+          ),
+        )
+      }
+      if (actions.length === 0) {
+        return h('span', { class: 'muted' }, '无权限')
+      }
+      return h(NSpace, { size: 'small' }, { default: () => actions })
+    },
   },
 ])
 
@@ -244,7 +253,7 @@ onMounted(async () => {
 <template>
   <n-card title="角色管理" size="large">
     <template #header-extra>
-      <n-button type="primary" @click="openCreate">新建角色</n-button>
+      <n-button v-permission="'sys:role:add'" type="primary" @click="openCreate">新建角色</n-button>
     </template>
 
     <n-space vertical size="large">

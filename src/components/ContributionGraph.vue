@@ -4,6 +4,7 @@
  */
 import { ref, inject, watch, computed, onBeforeUnmount, type Ref } from 'vue';
 import { useGitHubStore } from '../stores/github';
+import { usePermissionStore } from '../stores/permission';
 import { pushGithubContributions, getGithubPushStatus, getGithubRecentPushes } from '../api/github';
 import {
   useDialog,
@@ -47,12 +48,30 @@ const yearOptions = computed(() => {
 });
 
 const githubStore = useGitHubStore();
+const { hasPermission } = usePermissionStore();
 const dialog = useDialog();
 const githubProfile = computed(() => githubStore.profile);
 const isGithubConnected = computed(() => !!githubProfile.value);
 const githubLogin = computed(() => githubProfile.value?.login || '');
 const githubUrl = computed(() => githubProfile.value?.htmlUrl || '');
 const githubAvatar = computed(() => githubProfile.value?.avatarUrl || '');
+const canGithubConnect = computed(() => hasPermission('app:github:connect'));
+const canGithubDisconnect = computed(() => hasPermission('app:github:disconnect'));
+const canGithubPush = computed(() => hasPermission('app:github:push'));
+const canGithubStatus = computed(() => hasPermission('app:github:push:status'));
+const canGithubRecent = computed(() => hasPermission('app:github:push:recent'));
+const canGithubQuery = computed(() => canGithubStatus.value || canGithubRecent.value);
+const toolPermissionMap: Record<string, string> = {
+  brush: 'app:graph:brush',
+  eraser: 'app:graph:eraser',
+  auto: 'app:graph:auto',
+  random: 'app:graph:random',
+  pattern: 'app:graph:pattern',
+};
+const canUseTool = (tool: string) => {
+  const perm = toolPermissionMap[tool];
+  return perm ? hasPermission(perm) : true;
+};
 const connectGithub = () => {
   const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api';
   window.location.href = `${apiBase}/github/authorize`;
@@ -97,6 +116,13 @@ const isGraphEmpty = computed(() => {
 });
 
 const openPushDialog = () => {
+  if (!canGithubPush.value) {
+    dialog.warning({
+      title: '无权限',
+      content: '当前账号无推送权限。',
+    });
+    return;
+  }
   if (isGraphEmpty.value) {
     dialog.warning({
       title: '无法推送',
@@ -160,6 +186,9 @@ const loadRepos = async () => {
 };
 
 const loadRecentPushes = async () => {
+  if (!canGithubRecent.value) {
+    return;
+  }
   recentLoading.value = true;
   recentError.value = '';
   const login = githubLogin.value;
@@ -179,6 +208,13 @@ const loadRecentPushes = async () => {
 };
 
 const confirmPush = async () => {
+  if (!canGithubPush.value) {
+    dialog.warning({
+      title: '无权限',
+      content: '当前账号无推送权限。',
+    });
+    return;
+  }
   pushError.value = '';
   if (pushMode.value === 'create') {
     if (!repoName.value.trim()) {
@@ -268,6 +304,13 @@ const startPushStatusPolling = (jobId: string) => {
 };
 
 const queryPushStatus = async () => {
+  if (!canGithubStatus.value) {
+    dialog.warning({
+      title: '无权限',
+      content: '当前账号无查询权限。',
+    });
+    return;
+  }
   if (!queryJobId.value.trim()) {
     dialog.warning({
       title: '请输入任务 ID',
@@ -306,8 +349,17 @@ const queryPushStatus = async () => {
 };
 
 const openQueryDialog = () => {
+  if (!canGithubQuery.value) {
+    dialog.warning({
+      title: '无权限',
+      content: '当前账号无查询权限。',
+    });
+    return;
+  }
   showQueryDialog.value = true;
-  void loadRecentPushes();
+  if (canGithubRecent.value) {
+    void loadRecentPushes();
+  }
 };
 
 onBeforeUnmount(() => {
@@ -505,6 +557,9 @@ const clearAll = () => {
 };
 
 watch(clearSignal, () => {
+  if (!hasPermission('app:graph:clear')) {
+    return;
+  }
   clearAll();
 });
 
@@ -522,6 +577,9 @@ const fillAll = () => {
 };
 
 watch(fillAllSignal, () => {
+  if (!hasPermission('app:graph:fill')) {
+    return;
+  }
   fillAll();
 });
 
@@ -604,6 +662,9 @@ const startPaint = (c: number, r: number, event: PointerEvent) => {
   if (event.button !== 0) {
     return;
   }
+  if (!canUseTool(activeTool.value)) {
+    return;
+  }
   isPointerDown.value = true;
   if (activeTool.value === 'pattern') {
     updatePreview(c, r);
@@ -617,6 +678,9 @@ const startPaint = (c: number, r: number, event: PointerEvent) => {
  * @param {number} r 行索引。
  */
 const hoverPaint = (c: number, r: number) => {
+  if (!canUseTool(activeTool.value)) {
+    return;
+  }
   if (activeTool.value === 'pattern') {
     updatePreview(c, r);
   } else if (previewCells.value.size) {
@@ -653,6 +717,9 @@ const handleRightClick = () => {
  * @param {number} r 行索引。
  */
 const paint = (c: number, r: number) => {
+  if (!canUseTool(activeTool.value)) {
+    return;
+  }
   const cell = gridCols.value[c]?.[r];
   if (!cell || cell.isFuture) {
     return;
@@ -732,7 +799,7 @@ const paint = (c: number, r: number) => {
               @{{ githubLogin }}
             </a>
             <span v-else class="github-link">@{{ githubLogin }}</span>
-            <n-tooltip trigger="hover">
+            <n-tooltip v-if="canGithubDisconnect" trigger="hover">
               <template #trigger>
                 <button class="github-disconnect" @click="disconnectGithub" aria-label="断开 GitHub">
                   <n-icon size="14">
@@ -743,8 +810,8 @@ const paint = (c: number, r: number) => {
               断开授权
             </n-tooltip>
           </div>
-          <button v-else class="github-connect" @click="connectGithub">连接 GitHub</button>
-          <n-tooltip trigger="hover">
+          <button v-else-if="canGithubConnect" class="github-connect" @click="connectGithub">连接 GitHub</button>
+          <n-tooltip v-if="canGithubPush" trigger="hover">
             <template #trigger>
               <button class="github-push" @click="openPushDialog">
                 <n-icon size="14">
@@ -755,7 +822,7 @@ const paint = (c: number, r: number) => {
             </template>
             推送贡献图
           </n-tooltip>
-          <n-tooltip trigger="hover">
+          <n-tooltip v-if="canGithubQuery" trigger="hover">
             <template #trigger>
               <button class="github-query" @click="openQueryDialog">
                 查询
@@ -875,13 +942,20 @@ const paint = (c: number, r: number) => {
           <div class="recent-list">
             <div class="recent-header">
               <span>列表</span>
-              <n-button size="tiny" secondary :loading="recentLoading" @click="loadRecentPushes">
+              <n-button
+                v-if="canGithubRecent"
+                size="tiny"
+                secondary
+                :loading="recentLoading"
+                @click="loadRecentPushes"
+              >
                 <n-icon size="14">
                   <Renew />
                 </n-icon>
               </n-button>
             </div>
-            <div v-if="recentLoading" class="recent-muted">加载中...</div>
+            <div v-if="!canGithubRecent" class="recent-muted">无查看权限</div>
+            <div v-else-if="recentLoading" class="recent-muted">加载中...</div>
             <div v-else-if="recentError" class="push-error">{{ recentError }}</div>
             <div v-else-if="recentPushes.length === 0" class="recent-muted">暂无记录</div>
             <div v-else class="recent-items">
@@ -900,7 +974,14 @@ const paint = (c: number, r: number) => {
         </n-form-item>
         <n-space justify="end">
           <n-button secondary @click="showQueryDialog = false">取消</n-button>
-          <n-button type="primary" :loading="queryLoading" @click="queryPushStatus">查询</n-button>
+          <n-button
+            type="primary"
+            :loading="queryLoading"
+            :disabled="!canGithubStatus"
+            @click="queryPushStatus"
+          >
+            查询
+          </n-button>
         </n-space>
       </n-form>
     </n-modal>

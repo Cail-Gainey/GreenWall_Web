@@ -23,6 +23,7 @@ import {
 import { createUser, deleteUser, getUserPage, updateUser } from '../../api/user'
 import { getAllRoles } from '../../api/role'
 import { assignUserRoles } from '../../api/permission'
+import { usePermissionStore } from '../../stores/permission'
 import type {
   RoleDto,
   UserCreateDto,
@@ -62,6 +63,8 @@ const form = ref({
 
 const assignUser = ref<UserListItemDto | null>(null)
 const assignRoleIds = ref<string[]>([])
+
+const { hasPermission } = usePermissionStore()
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(total.value / pageSize.value)),
@@ -339,30 +342,40 @@ const columns = computed<DataTableColumns<UserListItemDto>>(() => [
   {
     title: '操作',
     key: 'actions',
-    render: (row) =>
-      h(
-        NSpace,
-        { size: 'small' },
-        {
-          default: () => [
-            h(
-              NButton,
-              { size: 'tiny', quaternary: true, onClick: () => openEdit(row) },
-              { default: () => '编辑' },
-            ),
-            h(
-              NButton,
-              { size: 'tiny', quaternary: true, onClick: () => openAssign(row) },
-              { default: () => '分配角色' },
-            ),
-            h(
-              NButton,
-              { size: 'tiny', quaternary: true, type: 'error', onClick: () => handleDelete(row) },
-              { default: () => '删除' },
-            ),
-          ],
-        },
-      ),
+    render: (row) => {
+      const actions = []
+      if (hasPermission('sys:user:edit')) {
+        actions.push(
+          h(
+            NButton,
+            { size: 'tiny', quaternary: true, onClick: () => openEdit(row) },
+            { default: () => '编辑' },
+          ),
+        )
+      }
+      if (hasPermission('sys:user:assign')) {
+        actions.push(
+          h(
+            NButton,
+            { size: 'tiny', quaternary: true, onClick: () => openAssign(row) },
+            { default: () => '分配角色' },
+          ),
+        )
+      }
+      if (hasPermission('sys:user:delete')) {
+        actions.push(
+          h(
+            NButton,
+            { size: 'tiny', quaternary: true, type: 'error', onClick: () => handleDelete(row) },
+            { default: () => '删除' },
+          ),
+        )
+      }
+      if (actions.length === 0) {
+        return h('span', { class: 'muted' }, '无权限')
+      }
+      return h(NSpace, { size: 'small' }, { default: () => actions })
+    },
   },
 ])
 
@@ -374,7 +387,7 @@ onMounted(async () => {
 <template>
   <n-card title="用户管理" size="large">
     <template #header-extra>
-      <n-button type="primary" @click="openCreate">新建用户</n-button>
+      <n-button v-permission="'sys:user:add'" type="primary" @click="openCreate">新建用户</n-button>
     </template>
 
     <n-space vertical size="large">
@@ -457,7 +470,7 @@ onMounted(async () => {
           </n-form-item>
         </n-space>
 
-        <div v-if="formMode === 'create'" class="role-area">
+        <div v-if="formMode === 'create' && hasPermission('sys:user:assign')" class="role-area">
           <div class="role-title">分配角色</div>
           <n-checkbox-group v-model:value="form.roleIds">
             <n-space wrap>

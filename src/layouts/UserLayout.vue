@@ -48,11 +48,23 @@ async function onLoggedIn(user: UserDto) {
   currentUser.value = user
   showAuthDialog.value = false
   await permissionStore.loadPermission()
-  if (permissionStore.roles.value.includes('admin')) {
+  if (permissionStore.hasPermission('sys:dashboard')) {
     router.push('/admin')
-  } else {
-    router.push('/')
+    return
   }
+  if (permissionStore.hasPermission('sys:user:list')) {
+    router.push('/admin/users')
+    return
+  }
+  if (permissionStore.hasPermission('sys:role:list')) {
+    router.push('/admin/roles')
+    return
+  }
+  if (permissionStore.hasPermission('sys:menu:list')) {
+    router.push('/admin/menus')
+    return
+  }
+  router.push('/')
 }
 
 function onLogout() {

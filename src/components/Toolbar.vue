@@ -2,10 +2,11 @@
 /**
  * @file 工具栏组件：选择画笔、橡皮擦与颜色。
  */
-import { inject, ref, type Ref } from 'vue';
+import { computed, inject, ref, type Ref } from 'vue';
 import { NTooltip, NIcon } from 'naive-ui';
 import PatternDialog from './PatternDialog.vue';
 import { Pen, Erase, ColorPalette, Lightning, StringText, TrashCan, PaintBrush } from '@vicons/carbon';
+import { usePermissionStore } from '../stores/permission';
 
 /**
  * @description 可选贡献等级调色板（0-4）。
@@ -28,6 +29,15 @@ const activePattern = inject<Ref<boolean[][] | null>>('activePattern')!;
 const activePatternLevel = inject<Ref<number>>('activePatternLevel')!;
 const activePatternRandom = inject<Ref<boolean>>('activePatternRandom')!;
 
+const { hasPermission } = usePermissionStore();
+const canBrush = computed(() => hasPermission('app:graph:brush'));
+const canEraser = computed(() => hasPermission('app:graph:eraser'));
+const canAuto = computed(() => hasPermission('app:graph:auto'));
+const canRandom = computed(() => hasPermission('app:graph:random'));
+const canPattern = computed(() => hasPermission('app:graph:pattern'));
+const canClear = computed(() => hasPermission('app:graph:clear'));
+const canFill = computed(() => hasPermission('app:graph:fill'));
+
 const showPatternDialog = ref(false);
 
 const handlePatternSelect = (pattern: boolean[][], level: number, random: boolean) => {
@@ -43,7 +53,7 @@ const handlePatternSelect = (pattern: boolean[][], level: number, random: boolea
     <div class="toolbar">
       <!-- Brush and Eraser -->
       <div class="tool-group">
-        <n-tooltip trigger="hover">
+        <n-tooltip v-if="canBrush" trigger="hover">
           <template #trigger>
             <button 
               class="tool-btn" 
@@ -55,7 +65,7 @@ const handlePatternSelect = (pattern: boolean[][], level: number, random: boolea
           </template>
           画笔
         </n-tooltip>
-        <n-tooltip trigger="hover">
+        <n-tooltip v-if="canEraser" trigger="hover">
           <template #trigger>
             <button 
               class="tool-btn"
@@ -85,7 +95,7 @@ const handlePatternSelect = (pattern: boolean[][], level: number, random: boolea
       
       <!-- Specialized Icons -->
       <div class="special-tools">
-        <n-tooltip trigger="hover">
+        <n-tooltip v-if="canAuto" trigger="hover">
           <template #trigger>
             <button 
               class="icon-tool auto-btn" 
@@ -97,7 +107,7 @@ const handlePatternSelect = (pattern: boolean[][], level: number, random: boolea
           </template>
           自动
         </n-tooltip>
-        <n-tooltip trigger="hover">
+        <n-tooltip v-if="canRandom" trigger="hover">
           <template #trigger>
             <button 
               class="icon-tool random-btn" 
@@ -115,7 +125,7 @@ const handlePatternSelect = (pattern: boolean[][], level: number, random: boolea
 
       <!-- More Tools -->
       <div class="extra-tools">
-        <n-tooltip trigger="hover">
+        <n-tooltip v-if="canPattern" trigger="hover">
           <template #trigger>
             <button 
               class="tool-btn" 
@@ -128,7 +138,7 @@ const handlePatternSelect = (pattern: boolean[][], level: number, random: boolea
           图案
         </n-tooltip>
 
-        <n-tooltip trigger="hover">
+        <n-tooltip v-if="canClear" trigger="hover">
           <template #trigger>
             <button class="tool-btn" @click="requestClear">
               <n-icon size="16"><TrashCan /></n-icon>
@@ -137,7 +147,7 @@ const handlePatternSelect = (pattern: boolean[][], level: number, random: boolea
           清空
         </n-tooltip>
         
-        <n-tooltip trigger="hover">
+        <n-tooltip v-if="canFill" trigger="hover">
           <template #trigger>
             <button class="icon-tool" style="color: var(--color-success)" @click="requestFillAll">
               <n-icon size="16"><PaintBrush /></n-icon>
@@ -148,7 +158,7 @@ const handlePatternSelect = (pattern: boolean[][], level: number, random: boolea
       </div>
 
     </div>
-    <PatternDialog v-model:show="showPatternDialog" @select="handlePatternSelect" />
+    <PatternDialog v-if="canPattern" v-model:show="showPatternDialog" @select="handlePatternSelect" />
   </div>
 </template>
 
