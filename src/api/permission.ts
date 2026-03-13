@@ -19,6 +19,16 @@ export function getUserPermissions() {
 }
 
 /**
+ * @description 按前缀筛选权限标识列表。
+ * @param prefix 权限前缀
+ */
+export function filterUserPermissions(prefix: string) {
+  return request.get<ApiResult<string[]>>('/Permission/permissions/filter', {
+    params: { prefix },
+  })
+}
+
+/**
  * @description 给用户分配角色 (仅管理员)。
  */
 export function assignUserRoles(data: AssignUserRolesDto) {

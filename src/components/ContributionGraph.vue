@@ -73,6 +73,7 @@ const canGithubPush = computed(() => hasPermission('app:github:push'));
 const canGithubStatus = computed(() => hasPermission('app:github:push:status'));
 const canGithubRecent = computed(() => hasPermission('app:github:push:recent'));
 const canGithubQuery = computed(() => canGithubStatus.value || canGithubRecent.value);
+const canCommunityPublish = computed(() => hasPermission('app:community:publish'));
 const isLoggedIn = computed(() => !!user.value || !!localStorage.getItem('token'));
 const toolPermissionMap: Record<string, string> = {
   brush: 'app:graph:brush',
@@ -137,6 +138,13 @@ const openCommunityDialog = () => {
     dialog.warning({
       title: '需要登录',
       content: '登录后才能上传图案到社区。',
+    });
+    return;
+  }
+  if (!canCommunityPublish.value) {
+    dialog.warning({
+      title: '无权限',
+      content: '当前账号无发布权限。',
     });
     return;
   }
@@ -953,7 +961,7 @@ const paint = (c: number, r: number) => {
             </template>
             查询推送任务
           </n-tooltip>
-          <n-tooltip trigger="hover">
+          <n-tooltip v-if="canCommunityPublish" trigger="hover">
             <template #trigger>
               <button class="community-upload" @click="openCommunityDialog">
                 社区
