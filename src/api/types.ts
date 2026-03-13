@@ -419,3 +419,49 @@ export interface PatternListItemDto {
 export interface PatternDetailDto extends PatternListItemDto {
   creatorId: string
 }
+
+/**
+ * @description MySQL 监控信息。
+ */
+export interface MySqlMonitorDto {
+  version: string
+  uptime: number
+  threadsConnected: number
+  threadsRunning: number
+  connections: number
+  questions: number
+  slowQueries: number
+  qps: number
+  serverTime: string
+}
+
+/**
+ * @description Redis 监控信息。
+ */
+export interface RedisMonitorDto {
+  version: string
+  uptime: number
+  connectedClients: number
+  totalConnections: number
+  totalCommands: number
+  instantOpsPerSec: number
+  rejectedConnections: number
+  usedMemory: number
+  usedMemoryHuman: string
+  maxMemory: number
+}
+
+/**
+ * @description 服务器运行信息。
+ */
+export interface ServerMonitorDto {
+  machineName: string
+  osDescription: string
+  frameworkDescription: string
+  processId: number
+  processStartTime: string
+  uptime: number
+  processorCount: number
+  workingSet: number
+  gcMemory: number
+}

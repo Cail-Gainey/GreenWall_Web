@@ -71,6 +71,12 @@ const router = createRouter({
           name: 'admin-menus',
           component: () => import('../views/admin/MenuList.vue'),
           meta: { permission: 'sys:menu:list' }
+        },
+        {
+          path: 'monitor',
+          name: 'admin-monitor',
+          component: () => import('../views/admin/MonitorView.vue'),
+          meta: { permission: 'sys:monitor:view' }
         }
       ]
     },
