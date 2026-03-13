@@ -83,6 +83,30 @@ const router = createRouter({
           name: 'admin-settings',
           component: () => import('../views/admin/SystemSettingsView.vue'),
           meta: { permission: 'sys:config:view' }
+        },
+        {
+          path: 'dicts',
+          name: 'admin-dicts',
+          component: () => import('../views/admin/DictView.vue'),
+          meta: { permission: 'sys:dict:type:list' }
+        },
+        {
+          path: 'params',
+          name: 'admin-params',
+          component: () => import('../views/admin/ParamConfigView.vue'),
+          meta: { permission: 'sys:param:list' }
+        },
+        {
+          path: 'logs/oper',
+          name: 'admin-oper-logs',
+          component: () => import('../views/admin/OperLogView.vue'),
+          meta: { permission: 'sys:log:oper' }
+        },
+        {
+          path: 'logs/login',
+          name: 'admin-login-logs',
+          component: () => import('../views/admin/LoginLogView.vue'),
+          meta: { permission: 'sys:log:login' }
         }
       ]
     },

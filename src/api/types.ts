@@ -496,3 +496,141 @@ export interface SystemPublicSettingsDto {
   emailVerifyEnabled: boolean
   githubOAuthEnabled: boolean
 }
+
+// ========== 日志管理 ==========
+
+export interface OperLogQueryDto {
+  pageIndex?: number
+  pageSize?: number
+  keyword?: string
+  status?: number
+  startTime?: string
+  endTime?: string
+}
+
+export interface OperLogDto {
+  id: string
+  userId?: string
+  userName?: string
+  action: string
+  method?: string
+  path?: string
+  ip?: string
+  userAgent?: string
+  status: number
+  resultCode?: number
+  errorMsg?: string
+  durationMs?: number
+  createTime: string
+}
+
+export interface LoginLogQueryDto {
+  pageIndex?: number
+  pageSize?: number
+  account?: string
+  status?: number
+  startTime?: string
+  endTime?: string
+}
+
+export interface LoginLogDto {
+  id: string
+  userId?: string
+  account?: string
+  ip?: string
+  userAgent?: string
+  status: number
+  message?: string
+  createTime: string
+}
+
+// ========== 数据字典 ==========
+
+export interface DictTypeQueryDto {
+  pageIndex?: number
+  pageSize?: number
+  keyword?: string
+  status?: number
+}
+
+export interface DictTypeDto {
+  id: string
+  dictName: string
+  dictType: string
+  status: number
+  remark?: string
+  createTime: string
+}
+
+export interface DictTypeCreateDto {
+  dictName: string
+  dictType: string
+  status: number
+  remark?: string
+}
+
+export interface DictTypeUpdateDto extends DictTypeCreateDto {
+  id: string
+}
+
+export interface DictDataQueryDto {
+  pageIndex?: number
+  pageSize?: number
+  dictType?: string
+  status?: number
+}
+
+export interface DictDataDto {
+  id: string
+  dictType: string
+  dictLabel: string
+  dictValue: string
+  sort: number
+  isDefault: boolean
+  status: number
+  remark?: string
+  createTime: string
+}
+
+export interface DictDataCreateDto {
+  dictType: string
+  dictLabel: string
+  dictValue: string
+  sort: number
+  isDefault: boolean
+  status: number
+  remark?: string
+}
+
+export interface DictDataUpdateDto extends DictDataCreateDto {
+  id: string
+}
+
+// ========== 参数配置 ==========
+
+export interface ConfigQueryDto {
+  pageIndex?: number
+  pageSize?: number
+  keyword?: string
+  status?: number
+}
+
+export interface ConfigDto {
+  id: string
+  configKey: string
+  configValue?: string
+  status: number
+  remark?: string
+  createTime: string
+}
+
+export interface ConfigCreateDto {
+  configKey: string
+  configValue?: string
+  status: number
+  remark?: string
+}
+
+export interface ConfigUpdateDto extends ConfigCreateDto {
+  id: string
+}
