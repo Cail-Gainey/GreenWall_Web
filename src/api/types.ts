@@ -634,3 +634,26 @@ export interface ConfigCreateDto {
 export interface ConfigUpdateDto extends ConfigCreateDto {
   id: string
 }
+
+// ========== 仪表盘 ==========
+
+export interface DashboardTrendDto {
+  date: string
+  success: number
+  fail: number
+}
+
+export interface DashboardSummaryDto {
+  userCount: string
+  roleCount: string
+  menuCount: string
+  patternCount: string
+  dictTypeCount: string
+  configCount: string
+  loginLogCount: string
+  operLogCount: string
+  loginTrend: DashboardTrendDto[]
+  operTrend: DashboardTrendDto[]
+  recentLoginLogs: LoginLogDto[]
+  recentOperLogs: OperLogDto[]
+}
