@@ -365,3 +365,57 @@ export interface AssignUserRolesDto {
   userId: string
   roleIds: string[]
 }
+
+/**
+ * @description 图案单元。
+ */
+export interface PatternCellDto {
+  col: number
+  row: number
+  level: number
+}
+
+/**
+ * @description 社区图案创建请求。
+ */
+export interface PatternCreateDto {
+  title: string
+  description?: string
+  year: number
+  gridCols: number
+  gridRows: number
+  cells: PatternCellDto[]
+}
+
+/**
+ * @description 社区图案更新请求。
+ */
+export interface PatternUpdateDto extends PatternCreateDto {}
+
+/**
+ * @description 社区图案列表项。
+ */
+export interface PatternListItemDto {
+  id: string
+  title: string
+  description?: string
+  year: number
+  gridCols: number
+  gridRows: number
+  cells: PatternCellDto[]
+  viewCount: number
+  likeCount: number
+  favoriteCount: number
+  creatorName: string
+  creatorAvatar?: string
+  createTime: string
+  isLiked: boolean
+  isFavorited: boolean
+}
+
+/**
+ * @description 社区图案详情。
+ */
+export interface PatternDetailDto extends PatternListItemDto {
+  creatorId: string
+}

@@ -3,12 +3,18 @@
  * @file 贡献图组件：按年份渲染可绘制的日历网格。
  */
 import { ref, inject, watch, computed, onBeforeUnmount, type Ref } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useGitHubStore } from '../stores/github';
 import { usePermissionStore } from '../stores/permission';
 import { pushGithubContributions, getGithubPushStatus } from '../api/github';
+import { createPattern } from '../api/patternCommunity';
 import { usePushRecordStore } from '../stores/pushRecord';
+import { usePatternImportStore } from '../stores/patternImport';
+import { getYearMeta } from '../utils/graph';
+import GraphTableTemplate from './GraphTableTemplate.vue';
 import {
   useDialog,
+  useMessage,
   NIcon,
   NTooltip,
   NModal,
@@ -50,8 +56,12 @@ const yearOptions = computed(() => {
 
 const githubStore = useGitHubStore();
 const pushRecordStore = usePushRecordStore();
-const { hasPermission } = usePermissionStore();
+const permissionStore = usePermissionStore();
+const { user } = storeToRefs(permissionStore);
+const { hasPermission } = permissionStore;
 const dialog = useDialog();
+const message = useMessage();
+const importStore = usePatternImportStore();
 const githubProfile = computed(() => githubStore.profile);
 const isGithubConnected = computed(() => !!githubProfile.value);
 const githubLogin = computed(() => githubProfile.value?.login || '');
@@ -63,6 +73,7 @@ const canGithubPush = computed(() => hasPermission('app:github:push'));
 const canGithubStatus = computed(() => hasPermission('app:github:push:status'));
 const canGithubRecent = computed(() => hasPermission('app:github:push:recent'));
 const canGithubQuery = computed(() => canGithubStatus.value || canGithubRecent.value);
+const isLoggedIn = computed(() => !!user.value || !!localStorage.getItem('token'));
 const toolPermissionMap: Record<string, string> = {
   brush: 'app:graph:brush',
   eraser: 'app:graph:eraser',
@@ -105,6 +116,10 @@ const showQueryDialog = ref(false);
 const recentPushes = ref<{ jobId: string; status: string; message?: string; updatedAt: string }[]>([]);
 const recentLoading = ref(false);
 const recentError = ref('');
+const showCommunityDialog = ref(false);
+const communityTitle = ref('');
+const communityDesc = ref('');
+const communitySubmitting = ref(false);
 
 const isGraphEmpty = computed(() => {
   for (const col of gridCols.value) {
@@ -116,6 +131,79 @@ const isGraphEmpty = computed(() => {
   }
   return true;
 });
+
+const openCommunityDialog = () => {
+  if (!isLoggedIn.value) {
+    dialog.warning({
+      title: '需要登录',
+      content: '登录后才能上传图案到社区。',
+    });
+    return;
+  }
+  if (isGraphEmpty.value) {
+    dialog.warning({
+      title: '无法上传',
+      content: '贡献图为空，请先绘制后再上传。',
+    });
+    return;
+  }
+  communityTitle.value = '';
+  communityDesc.value = '';
+  showCommunityDialog.value = true;
+};
+
+const closeCommunityDialog = () => {
+  showCommunityDialog.value = false;
+};
+
+const buildCommunityCells = () => {
+  const cells: { col: number; row: number; level: number }[] = [];
+  gridCols.value.forEach((col, cIndex) => {
+    col.forEach((cell, rIndex) => {
+      if (cell && !cell.isFuture && cell.level > 0) {
+        cells.push({ col: cIndex, row: rIndex, level: cell.level });
+      }
+    });
+  });
+  return cells;
+};
+
+const confirmCommunityUpload = async () => {
+  if (!isLoggedIn.value) {
+    dialog.warning({
+      title: '需要登录',
+      content: '登录后才能上传图案到社区。',
+    });
+    return;
+  }
+  const title = communityTitle.value.trim();
+  if (!title) {
+    message.warning('请输入图案标题');
+    return;
+  }
+  const cells = buildCommunityCells();
+  if (cells.length === 0) {
+    message.warning('图案为空，无法上传');
+    return;
+  }
+  communitySubmitting.value = true;
+  try {
+    await createPattern({
+      title,
+      description: communityDesc.value.trim() || undefined,
+      year: currentYear.value,
+      gridCols: gridCols.value.length,
+      gridRows: 7,
+      cells,
+    });
+    message.success('已上传到社区');
+    showCommunityDialog.value = false;
+  } catch (e: any) {
+    message.error(e?.message || '上传失败');
+  } finally {
+    communitySubmitting.value = false;
+  }
+};
 
 const openPushDialog = () => {
   if (!canGithubPush.value) {
@@ -489,11 +577,7 @@ const getPreviewOverlayColor = (c: number, r: number) => {
  * @param {number} year 目标年份。
  */
 const generateGrid = (year: number) => {
-  const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
-  const daysInYear = isLeap ? 366 : 365;
-  
-  const startDate = new Date(year, 0, 1);
-  const startDayOfWeek = startDate.getDay(); // 0 is Sun, 1 is Mon... 6 is Sat
+  const { daysInYear, startDayOfWeek } = getYearMeta(year);
   
   // GitHub: rows 0-6 represent Sun-Sat
   const startRowIndex = startDayOfWeek;
@@ -581,12 +665,45 @@ const fillAll = () => {
   });
 };
 
+const applyImportedPattern = (pattern: {
+  year: number
+  gridCols: number
+  gridRows: number
+  cells: { col: number; row: number; level: number }[]
+}) => {
+  if (pattern.year) {
+    const next = clampYear(pattern.year);
+    currentYear.value = next;
+    generateGrid(next);
+    clearPreview();
+  }
+  clearAll();
+  pattern.cells.forEach((cell) => {
+    const target = gridCols.value[cell.col]?.[cell.row];
+    if (target && !target.isFuture) {
+      target.level = clampLevel(cell.level);
+    }
+  });
+  message.success('已导入并覆盖当前贡献图');
+};
+
 watch(fillAllSignal, () => {
   if (!hasPermission('app:graph:fill')) {
     return;
   }
   fillAll();
 });
+
+watch(
+  () => importStore.pending,
+  (pattern) => {
+    if (!pattern) return;
+    applyImportedPattern(pattern);
+    importStore.clear();
+  },
+  { immediate: true },
+);
+
 
 watch(activeTool, () => {
   if (activeTool.value !== 'pattern') {
@@ -650,6 +767,7 @@ const changeYear = (value: number) => {
   generateGrid(currentYear.value);
   clearPreview();
 };
+
 
 // Painting logic
 const isPointerDown = ref(false);
@@ -835,47 +953,27 @@ const paint = (c: number, r: number) => {
             </template>
             查询推送任务
           </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <button class="community-upload" @click="openCommunityDialog">
+                社区
+              </button>
+            </template>
+            上传图案到社区
+          </n-tooltip>
         </div>
       </div>
       
-      <div class="graph-scroll-area">
-        <!-- Months row -->
-        <div class="months-row" :style="{ width: `calc(${gridCols.length * 18}px)` }">
-          <span 
-            v-for="(mp, idx) in monthPositions" 
-            :key="idx" 
-            class="month-label"
-            :style="{ left: `${mp.colIndex * 18}px` }"
-          >
-            {{ mp.label }}
-          </span>
-        </div>
-
-        <div class="graph-body">
-          <!-- Days column -->
-          <div class="days-col">
-            <span v-for="(d, i) in days" :key="i" class="day-label">{{ d }}</span>
-          </div>
-
-          <!-- Grid -->
-          <div class="grid-wrapper">
-            <div class="grid-col" v-for="(col, c) in gridCols" :key="c">
-              <template v-for="(cell, r) in col" :key="r">
-                <div 
-                  v-if="cell"
-                  class="grid-cell" 
-                  :class="{ 'future-cell': cell.isFuture, 'preview-cell': isPreviewCell(c, r) }"
-                  :style="{ backgroundColor: levelToColor(cell.level), '--preview-color': getPreviewOverlayColor(c, r) }"
-                  :data-date="cell.date"
-                  @pointerdown="startPaint(c, r, $event)"
-                  @pointerenter="hoverPaint(c, r)"
-                ></div>
-                <div v-else class="grid-cell ghost-cell"></div>
-              </template>
-            </div>
-          </div>
-        </div>
-      </div>
+      <GraphTableTemplate
+        :grid-cols="gridCols"
+        :month-positions="monthPositions"
+        :days="days"
+        :level-to-color="levelToColor"
+        :is-preview-cell="isPreviewCell"
+        :preview-color="getPreviewOverlayColor"
+        :on-cell-pointer-down="startPaint"
+        :on-cell-pointer-enter="hoverPaint"
+      />
     </div>
 
     <!-- Year Selector -->
@@ -989,6 +1087,28 @@ const paint = (c: number, r: number) => {
           </n-button>
         </n-space>
       </n-form>
+    </n-modal>
+
+    <n-modal v-model:show="showCommunityDialog" preset="card" title="上传到社区" style="width: min(420px, 92vw);">
+      <n-form label-placement="left" label-width="64">
+        <n-form-item label="标题">
+          <n-input v-model:value="communityTitle" placeholder="请输入图案标题" maxlength="80" />
+        </n-form-item>
+        <n-form-item label="描述">
+          <n-input
+            v-model:value="communityDesc"
+            type="textarea"
+            placeholder="可选，简要描述图案"
+            :autosize="{ minRows: 2, maxRows: 4 }"
+          />
+        </n-form-item>
+      </n-form>
+      <div class="community-actions">
+        <n-button secondary @click="closeCommunityDialog" :disabled="communitySubmitting">取消</n-button>
+        <n-button type="primary" @click="confirmCommunityUpload" :loading="communitySubmitting">
+          上传
+        </n-button>
+      </div>
     </n-modal>
   </div>
 </template>
@@ -1126,6 +1246,29 @@ const paint = (c: number, r: number) => {
 .github-query:hover {
   background-color: var(--color-bg-light);
 }
+
+.community-upload {
+  border: none;
+  background: var(--color-primary);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.community-upload:hover {
+  filter: brightness(0.95);
+}
+
+.community-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+
 
 .push-error {
   color: #ef4444;

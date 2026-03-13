@@ -3,6 +3,7 @@
  * @file 顶部导航栏组件：Naive UI 风格。
  */
 import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { NButton, NDropdown, NSpace, NAvatar } from 'naive-ui'
 import { useTheme, type Theme } from '../composables/useTheme'
 import { usePermissionStore } from '../stores/permission'
@@ -18,6 +19,9 @@ const emit = defineEmits<{
   openProfile: []
   logout: []
 }>()
+
+const router = useRouter()
+const route = useRoute()
 
 const { currentTheme, setTheme } = useTheme()
 const { hasPermission } = usePermissionStore()
@@ -56,6 +60,11 @@ function handleProfileSelect(key: string | number) {
   }
   if (key === 'logout') emit('logout')
 }
+
+function goCommunity() {
+  if (route.path.startsWith('/community')) return
+  router.push('/community')
+}
 </script>
 
 <template>
@@ -69,6 +78,9 @@ function handleProfileSelect(key: string | number) {
     </div>
 
     <n-space align="center">
+      <n-button quaternary size="small" @click="goCommunity">
+        社区
+      </n-button>
       <n-dropdown :options="themeOptions" @select="handleThemeSelect">
         <n-button quaternary size="small">
           主题：{{ currentTheme }}

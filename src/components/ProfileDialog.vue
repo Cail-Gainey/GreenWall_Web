@@ -86,11 +86,18 @@ function showMsg(msg: string, error = false) {
   isError.value = error
 }
 
+/**
+ * @description 清空提示信息。
+ */
 function clearMsg() {
   message.value = ''
   isError.value = false
 }
 
+/**
+ * @description 格式化时间显示。
+ * @param value 原始时间字符串
+ */
 function formatDate(value?: string) {
   if (!value) return '-'
   const date = new Date(value)
@@ -98,6 +105,10 @@ function formatDate(value?: string) {
   return date.toLocaleString()
 }
 
+/**
+ * @description 用用户资料填充表单。
+ * @param data 用户资料
+ */
 function fillForm(data: UserProfileDto) {
   form.value = {
     account: data.account || '',
@@ -111,6 +122,9 @@ function fillForm(data: UserProfileDto) {
   }
 }
 
+/**
+ * @description 拉取个人资料。
+ */
 async function fetchProfile() {
   loading.value = true
   clearMsg()
@@ -125,6 +139,9 @@ async function fetchProfile() {
   }
 }
 
+/**
+ * @description 保存个人资料（含待上传头像）。
+ */
 async function submit() {
   if (!canEdit.value) {
     return showMsg('无权限修改个人资料', true)
@@ -194,6 +211,10 @@ function openFilePicker() {
   fileInputRef.value?.click()
 }
 
+/**
+ * @description 选择本地文件后读取图片并进入裁剪。
+ * @param event 文件输入事件
+ */
 async function handleFileChange(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -225,6 +246,9 @@ async function handleFileChange(event: Event) {
   reader.readAsDataURL(file)
 }
 
+/**
+ * @description 确认裁剪，仅本地预览，等待保存上传。
+ */
 function confirmCrop() {
   if (!cropperRef.value) return
   uploading.value = true
@@ -248,6 +272,9 @@ function confirmCrop() {
   })
 }
 
+/**
+ * @description 放弃当前头像更改。
+ */
 function discardPendingAvatar() {
   if (pendingAvatarPreview.value) {
     URL.revokeObjectURL(pendingAvatarPreview.value)

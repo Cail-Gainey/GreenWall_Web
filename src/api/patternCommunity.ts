@@ -1,0 +1,92 @@
+/**
+ * @file 贡献图图案社区接口封装。
+ */
+import request from './request'
+import type {
+  ApiResult,
+  PageResult,
+  PatternCreateDto,
+  PatternDetailDto,
+  PatternListItemDto,
+  PatternUpdateDto,
+} from './types'
+
+export type PatternSort = 'view' | 'like' | 'favorite'
+
+/**
+ * @description 获取社区图案列表。
+ * @param params 查询参数（分页 + 排序）
+ */
+export function getCommunityPatterns(params: {
+  pageIndex?: number
+  pageSize?: number
+  sort?: PatternSort
+  year?: number
+}) {
+  return request.get<ApiResult<PageResult<PatternListItemDto>>>('/patterns', { params })
+}
+
+/**
+ * @description 获取图案详情（浏览量 +1）。
+ * @param id 图案 ID
+ */
+export function getPatternDetail(id: string) {
+  return request.get<ApiResult<PatternDetailDto>>(`/patterns/${id}`)
+}
+
+/**
+ * @description 上传图案到社区。
+ * @param data 创建参数
+ */
+export function createPattern(data: PatternCreateDto) {
+  return request.post<ApiResult<string>>('/patterns', data)
+}
+
+/**
+ * @description 更新社区图案。
+ * @param id 图案 ID
+ * @param data 更新参数
+ */
+export function updatePattern(id: string, data: PatternUpdateDto) {
+  return request.put<ApiResult<boolean>>(`/patterns/${id}`, data)
+}
+
+/**
+ * @description 删除社区图案。
+ * @param id 图案 ID
+ */
+export function deletePattern(id: string) {
+  return request.delete<ApiResult<boolean>>(`/patterns/${id}`)
+}
+
+/**
+ * @description 点赞图案。
+ * @param id 图案 ID
+ */
+export function likePattern(id: string) {
+  return request.post<ApiResult<boolean>>(`/patterns/${id}/like`)
+}
+
+/**
+ * @description 取消点赞。
+ * @param id 图案 ID
+ */
+export function unlikePattern(id: string) {
+  return request.delete<ApiResult<boolean>>(`/patterns/${id}/like`)
+}
+
+/**
+ * @description 收藏图案。
+ * @param id 图案 ID
+ */
+export function favoritePattern(id: string) {
+  return request.post<ApiResult<boolean>>(`/patterns/${id}/favorite`)
+}
+
+/**
+ * @description 取消收藏。
+ * @param id 图案 ID
+ */
+export function unfavoritePattern(id: string) {
+  return request.delete<ApiResult<boolean>>(`/patterns/${id}/favorite`)
+}
