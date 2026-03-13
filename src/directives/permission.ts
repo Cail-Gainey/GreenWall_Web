@@ -21,6 +21,10 @@ const permissionDirective: Directive<HTMLElement, string | string[]> = {
   },
 }
 
+/**
+ * @description 注册 v-permission 指令。
+ * @param app Vue 应用实例
+ */
 export function setupPermissionDirective(app: App) {
   app.directive('permission', permissionDirective)
 }

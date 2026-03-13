@@ -1,5 +1,15 @@
+/**
+ * @file 字母贡献图的布尔矩阵模板。
+ */
+
+/**
+ * @description 单个字母的 7x5 像素网格。
+ */
 export type PatternGrid = boolean[][];
 
+/**
+ * @description A-Z 字母模板集合。
+ */
 export const PATTERNS = {
   A: [
     [false, true, true, true, false],

@@ -143,31 +143,59 @@ export interface GitHubOAuthDto {
   accessToken: string
 }
 
+/**
+ * @description 单个贡献图单元。
+ */
 export interface GitHubPushCellDto {
+  /** 日期（YYYY-MM-DD） */
   date: string
+  /** 贡献等级 0-4 */
   level: number
 }
 
+/**
+ * @description 贡献图推送请求。
+ */
 export interface GitHubPushRequestDto {
+  /** GitHub OAuth Access Token */
   accessToken: string
+  /** GitHub 登录名（可选，用于最近记录缓存） */
   githubLogin?: string
+  /** 推送模式：创建新仓库或使用已有仓库 */
   mode: 'create' | 'existing'
+  /** 新建仓库名称 */
   repoName?: string
+  /** 现有仓库全名 owner/repo */
   repoFullName?: string
+  /** 仓库可见性 */
   visibility: 'public' | 'private'
+  /** 目标年份 */
   year: number
+  /** 贡献图单元列表 */
   cells: GitHubPushCellDto[]
 }
 
+/**
+ * @description 贡献图推送响应。
+ */
 export interface GitHubPushResponseDto {
+  /** 任务 ID */
   jobId: string
+  /** 初始状态 */
   status: string
 }
 
+/**
+ * @description 贡献图推送任务状态。
+ */
 export interface GitHubPushStatusDto {
+  /** 任务 ID */
   jobId: string
+  /** 状态：queued | running | success | failed */
   status: string
+  /** 失败原因或补充信息 */
   message?: string
+  /** 状态更新时间 */
   updatedAt: string
 }
 

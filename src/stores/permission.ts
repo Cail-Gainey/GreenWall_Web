@@ -19,6 +19,9 @@ interface PermissionState {
   isLoaded: boolean
 }
 
+/**
+ * @description 权限状态管理。
+ */
 export const usePermissionStore = defineStore('permission', {
   state: (): PermissionState => ({
     user: null,

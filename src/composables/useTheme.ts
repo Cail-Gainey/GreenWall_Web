@@ -3,6 +3,9 @@
  */
 import { ref, onMounted, onUnmounted } from 'vue'
 
+/**
+ * @description 支持的主题类型。
+ */
 export type Theme = 'light' | 'dark' | 'purple' | 'pink' | 'auto'
 
 const currentTheme = ref<Theme>('auto')
