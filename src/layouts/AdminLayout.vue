@@ -2,21 +2,36 @@
 /**
  * @file 管理端布局：Naive UI 侧栏 + 顶部栏。
  */
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref, h, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NLayout, NLayoutSider, NLayoutHeader, NLayoutContent, NMenu, NButton, NSpace, NAvatar, NDropdown } from 'naive-ui'
+import { NLayout, NLayoutSider, NLayoutHeader, NLayoutContent, NMenu, NButton, NIcon } from 'naive-ui'
 import { logout } from '../api/auth'
 import { useGitHubStore } from '../stores/github'
 import { usePermissionStore } from '../stores/permission'
 import type { MenuTreeDto } from '../api/types'
 import type { MenuOption } from 'naive-ui'
-import userAvatarFallback from '../assets/user.png'
 import { storeToRefs } from 'pinia'
 import { useMenuTreeStore } from '../stores/menuTree'
 import { useRoleListStore } from '../stores/roleList'
 import { useUserListStore } from '../stores/userList'
 import { usePushRecordStore } from '../stores/pushRecord'
-import { useTheme, type Theme } from '../composables/useTheme'
+import AdminHeader from '../components/AdminHeader.vue'
+import ProfileDialog from '../components/ProfileDialog.vue'
+import AdminTabs from '../components/AdminTabs.vue'
+import AdminBreadcrumb from '../components/AdminBreadcrumb.vue'
+import {
+  Menu as MenuIcon,
+  Dashboard,
+  User,
+  UserMultiple,
+  Menu as MenuTreeIcon,
+  Settings,
+  CloudMonitoring,
+  Book,
+  Tools,
+  CloudLogging,
+} from '@vicons/carbon'
+import logoUrl from '../assets/logo.png'
 
 const router = useRouter()
 const route = useRoute()
@@ -28,23 +43,8 @@ const menuTreeStore = useMenuTreeStore()
 const roleListStore = useRoleListStore()
 const userListStore = useUserListStore()
 const pushRecordStore = usePushRecordStore()
-const { currentTheme, setTheme } = useTheme()
-
-const themeOptions = [
-  { label: '浅色', key: 'light' },
-  { label: '暗色', key: 'dark' },
-  { label: '紫色', key: 'purple' },
-  { label: '粉色', key: 'pink' },
-  { label: '海蓝', key: 'ocean' },
-  { label: '琥珀', key: 'amber' },
-  { label: '石板', key: 'slate' },
-  { label: '莫奈', key: 'monet' },
-  { label: '系统', key: 'auto' },
-]
-
-function handleThemeSelect(key: string | number) {
-  setTheme(key as Theme)
-}
+const collapsed = ref(false)
+const showProfileDialog = ref(false)
 
 onMounted(async () => {
   if (!isLoaded.value) {
@@ -52,28 +52,142 @@ onMounted(async () => {
   }
 })
 
+const iconMap: Record<string, any> = {
+  dashboard: Dashboard,
+  user: User,
+  team: UserMultiple,
+  menu: MenuTreeIcon,
+  setting: Settings,
+  monitor: CloudMonitoring,
+  book: Book,
+  tool: Tools,
+  log: CloudLogging,
+}
+
+const renderMenuIcon = (icon?: string | null) => {
+  if (!icon) return undefined
+  const IconComp = iconMap[icon]
+  if (!IconComp) return undefined
+  return () => h(NIcon, null, { default: () => h(IconComp) })
+}
+
+const groupIconMap: Record<string, any> = {
+  overview: Dashboard,
+  manage: UserMultiple,
+  monitor: CloudMonitoring,
+  config: Settings,
+  logs: CloudLogging,
+  other: MenuTreeIcon,
+}
+
+const renderGroupIcon = (key: string) => {
+  const IconComp = groupIconMap[key]
+  if (!IconComp) return undefined
+  return () => h(NIcon, null, { default: () => h(IconComp) })
+}
+
+const adminItems = computed(() => {
+  const items: Array<MenuTreeDto & { path?: string }> = []
+  const collect = (menu: MenuTreeDto) => {
+    if (menu.menuType === 2 && menu.path?.startsWith('/admin')) {
+      items.push(menu)
+      return
+    }
+    menu.children?.forEach(collect)
+  }
+  menus.value.forEach(collect)
+  return items.sort((a, b) => (a.sort || 0) - (b.sort || 0))
+})
+
+const groups = [
+  {
+    key: 'overview',
+    label: '概览',
+    match: (m: MenuTreeDto) => m.path === '/admin',
+  },
+  {
+    key: 'manage',
+    label: '系统管理',
+    match: (m: MenuTreeDto) => ['/admin/users', '/admin/roles', '/admin/menus'].includes(m.path || ''),
+  },
+  {
+    key: 'monitor',
+    label: '系统监控',
+    match: (m: MenuTreeDto) => m.path === '/admin/monitor',
+  },
+  {
+    key: 'config',
+    label: '系统设置',
+    match: (m: MenuTreeDto) => ['/admin/settings', '/admin/dicts', '/admin/params'].includes(m.path || ''),
+  },
+  {
+    key: 'logs',
+    label: '日志审计',
+    match: (m: MenuTreeDto) => (m.path || '').startsWith('/admin/logs/'),
+  },
+]
+
 const menuOptions = computed<MenuOption[]>(() => {
-  const options: MenuOption[] = []
-  const buildMenu = (menu: MenuTreeDto): MenuOption | null => {
-    if (menu.menuType === 2 && menu.path) {
-      return { key: menu.path, label: menu.menuName }
-    }
-    if (menu.menuType === 1) {
-      const children = (menu.children || [])
-        .map((child) => buildMenu(child))
-        .filter((child): child is MenuOption => !!child)
-      if (children.length === 0) return null
-      return { key: `dir-${menu.id}`, label: menu.menuName, children }
-    }
-    return null
+  const items = adminItems.value
+  const makeItem = (menu: MenuTreeDto): MenuOption => ({
+    key: menu.path!,
+    label: menu.menuName,
+    icon: renderMenuIcon(menu.icon),
+  })
+
+  if (collapsed.value) {
+    return items.map(makeItem)
   }
 
-  menus.value.forEach((menu) => {
-    const node = buildMenu(menu)
-    if (node) options.push(node)
-  })
-  return options
+  const used = new Set<MenuTreeDto>()
+  const grouped: MenuOption[] = groups.map((group) => {
+    const children = items.filter((m) => group.match(m)).map((m) => {
+      used.add(m)
+      return makeItem(m)
+    })
+    return { key: `group-${group.key}`, label: group.label, icon: renderGroupIcon(group.key), children }
+  }).filter((g) => (g as any).children.length > 0)
+
+  const leftovers = items.filter((m) => !used.has(m))
+  if (leftovers.length > 0) {
+    grouped.push({
+      key: 'group-other',
+      label: '其他',
+      icon: renderGroupIcon('other'),
+      children: leftovers.map(makeItem),
+    })
+  }
+
+  return grouped
 })
+
+const expandedKeys = ref<string[]>([])
+
+const resolveGroupKey = (path: string) => {
+  const items = adminItems.value
+  const target = items.find((m) => m.path === path)
+  if (!target) return ''
+  const matched = groups.find((g) => g.match(target))
+  return matched ? `group-${matched.key}` : 'group-other'
+}
+
+watch(
+  () => [route.path, collapsed.value, adminItems.value.length],
+  () => {
+    if (collapsed.value) {
+      expandedKeys.value = []
+      return
+    }
+    const key = resolveGroupKey(route.path)
+    expandedKeys.value = key ? [key] : []
+  },
+  { immediate: true },
+)
+
+const handleExpandedKeys = (keys: string[] | string) => {
+  const next = Array.isArray(keys) ? keys : [keys]
+  expandedKeys.value = next.slice(0, 1)
+}
 
 const activeKey = computed(() => route.path)
 
@@ -99,75 +213,146 @@ async function handleLogout() {
   router.push('/')
 }
 
-const avatarSrc = computed(() => {
-  if (!user.value?.avatar) return userAvatarFallback
-  return user.value.avatar.trim()
-})
+const toggleCollapsed = () => {
+  collapsed.value = !collapsed.value
+}
 </script>
 
 <template>
-  <n-layout class="admin-layout" has-sider>
-    <n-layout-sider width="240" bordered>
-      <div class="brand">
-        <div class="brand-badge">G</div>
-        <div class="brand-text">
-          <div class="brand-title">GreenWall</div>
-          <div class="brand-sub">Admin Console</div>
+  <n-layout class="admin-layout">
+    <n-layout-header bordered class="admin-header">
+      <AdminHeader
+        :user="user"
+        :show-brand="false"
+        @open-profile="showProfileDialog = true"
+        @logout="handleLogout"
+      >
+        <template #left>
+          <n-button quaternary size="small" @click="toggleCollapsed">
+            <n-icon size="18">
+              <MenuIcon />
+            </n-icon>
+          </n-button>
+          <span class="admin-title">管理后台</span>
+          <AdminBreadcrumb />
+        </template>
+      </AdminHeader>
+    </n-layout-header>
+    <n-layout has-sider class="admin-body">
+      <n-layout-sider
+        bordered
+        collapse-mode="width"
+        :collapsed="collapsed"
+        :collapsed-width="56"
+        :width="200"
+      >
+        <div class="brand" :class="{ collapsed }">
+          <img :src="logoUrl" alt="logo" class="brand-logo" />
+          <span class="brand-name">GreenWall</span>
         </div>
-      </div>
-      <n-menu
-        :options="menuOptions"
-        :value="activeKey"
-        @update:value="handleSelect"
-        accordion
-      />
-    </n-layout-sider>
-    <n-layout>
-      <n-layout-header bordered class="admin-header">
-        <div class="header-title">管理后台</div>
-        <n-space align="center">
-          <n-dropdown :options="themeOptions" @select="handleThemeSelect">
-            <n-button quaternary size="small">
-              主题：{{ currentTheme }}
-            </n-button>
-          </n-dropdown>
-          <n-space v-if="user" align="center" size="small">
-            <n-avatar size="small" :src="avatarSrc" :fallback-src="userAvatarFallback" :img-props="{ referrerpolicy: 'no-referrer' }" />
-            <span class="header-user">{{ user.nickName || user.account }}</span>
-          </n-space>
-          <n-button size="small" secondary @click="handleLogout">退出</n-button>
-        </n-space>
-      </n-layout-header>
+        <n-menu
+          :options="menuOptions"
+          :value="activeKey"
+          :collapsed="collapsed"
+          :collapsed-width="64"
+          :expanded-keys="expandedKeys"
+          :indent="18"
+          :icon-size="18"
+          :collapsed-icon-size="20"
+          @update:value="handleSelect"
+          @update:expanded-keys="handleExpandedKeys"
+          accordion
+        />
+      </n-layout-sider>
       <n-layout-content class="admin-content">
-        <router-view></router-view>
+        <div class="admin-nav">
+          <AdminTabs />
+        </div>
+        <div class="admin-scroll">
+          <router-view></router-view>
+        </div>
       </n-layout-content>
     </n-layout>
   </n-layout>
+
+  <ProfileDialog v-model:show="showProfileDialog" />
 </template>
 
 <style scoped>
 .admin-layout {
   height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.admin-layout :deep(.n-layout-scroll-container) {
+  overflow: hidden !important;
+}
+
+
+.admin-header {
+  flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--color-surface);
+}
+
+.admin-body {
+  flex: 1;
+  min-height: 0;
+  height: calc(100vh - 64px);
+  overflow: hidden;
+}
+
+.admin-body :deep(.n-layout-sider) {
+  height: 100%;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+}
+
+.admin-body :deep(.n-layout-scroll-container) {
+  height: 100%;
+  overflow: hidden;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 18px 16px 10px;
+  padding: 12px 0 8px;
+  justify-content: center;
 }
 
-.brand-badge {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.brand-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.brand-name {
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  background: linear-gradient(120deg, var(--color-primary), var(--color-info));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.15);
+  transition: opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  max-width: 120px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.brand.collapsed .brand-name {
+  opacity: 0;
+  transform: translateX(-6px);
+  max-width: 0;
 }
 
 .brand-title {
@@ -180,25 +365,64 @@ const avatarSrc = computed(() => {
   color: var(--color-text-muted);
 }
 
-.admin-header {
+.admin-content {
+  padding: 20px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  height: 64px;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  height: 100%;
+  align-items: stretch;
 }
 
-.header-title {
+.admin-title {
   font-weight: 600;
-  font-size: 1rem;
-}
-
-.header-user {
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   color: var(--color-text-muted);
 }
 
-.admin-content {
-  padding: 20px;
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
+
+.admin-scroll {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  align-self: stretch;
+  overflow: auto;
+  height: 100%;
+  overscroll-behavior: contain;
+}
+
+.admin-body :deep(.n-layout-content) {
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-body :deep(.n-layout-sider) {
+  transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.admin-body :deep(.n-menu) {
+  transition: padding 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.admin-body :deep(.n-layout-sider-scroll-container) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-body :deep(.n-menu) {
+  flex: 1;
+}
+
 </style>

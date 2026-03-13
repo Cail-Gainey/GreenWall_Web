@@ -2,7 +2,7 @@
 /**
  * @file 根组件：提供全局画笔状态供子组件注入。
  */
-import { computed, ref, provide } from 'vue'
+import { computed, ref, provide, onMounted, onBeforeUnmount } from 'vue'
 import {
   NConfigProvider,
   NDialogProvider,
@@ -46,6 +46,8 @@ provide('fillAllSignal', fillAllSignal)
 provide('requestFillAll', requestFillAll)
 
 const { currentTheme, resolvedTheme } = useTheme()
+const previousHtmlOverflow = ref<string>('')
+const previousBodyOverflow = ref<string>('')
 
 const effectiveTheme = computed(() => {
   return currentTheme.value === 'auto' ? resolvedTheme.value : currentTheme.value
@@ -94,6 +96,18 @@ const themeOverrides = computed(() => {
 })
 
 const naiveTheme = computed(() => (effectiveTheme.value === 'dark' ? darkTheme : null))
+
+onMounted(() => {
+  previousHtmlOverflow.value = document.documentElement.style.overflow
+  previousBodyOverflow.value = document.body.style.overflow
+  document.documentElement.style.overflow = 'hidden'
+  document.body.style.overflow = 'hidden'
+})
+
+onBeforeUnmount(() => {
+  document.documentElement.style.overflow = previousHtmlOverflow.value
+  document.body.style.overflow = previousBodyOverflow.value
+})
 </script>
 
 <template>

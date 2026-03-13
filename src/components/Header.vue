@@ -9,9 +9,12 @@ import { useTheme, type Theme } from '../composables/useTheme'
 import { usePermissionStore } from '../stores/permission'
 import type { UserProfileDto } from '../api/types'
 import userAvatarFallback from '../assets/user.png'
+import logoUrl from '../assets/logo.png'
 
 const props = defineProps<{
   user: UserProfileDto | null
+  showCommunity?: boolean
+  showBrand?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -73,16 +76,21 @@ function goCommunity() {
 
 <template>
   <div class="header">
-    <div class="brand">
-      <div class="brand-badge">G</div>
-      <div>
-        <div class="brand-title">GreenWall</div>
-        <div class="brand-sub">Workspace</div>
+    <div class="header-left">
+      <div v-if="showBrand !== false" class="brand">
+        <div class="brand-badge">
+          <img :src="logoUrl" alt="logo" class="brand-logo" />
+        </div>
+        <div>
+          <div class="brand-title">GreenWall</div>
+          <div class="brand-sub">Workspace</div>
+        </div>
       </div>
+      <slot name="left"></slot>
     </div>
 
     <n-space align="center">
-      <n-button quaternary size="small" @click="goCommunity">
+      <n-button v-if="showCommunity !== false" quaternary size="small" @click="goCommunity">
         社区
       </n-button>
       <n-dropdown :options="themeOptions" @select="handleThemeSelect">
@@ -122,6 +130,12 @@ function goCommunity() {
   background: var(--color-surface);
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .brand {
   display: flex;
   align-items: center;
@@ -133,11 +147,16 @@ function goCommunity() {
   height: 32px;
   border-radius: 10px;
   background: var(--color-primary);
-  color: var(--color-text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
+}
+
+.brand-logo {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
 }
 
 .brand-title {
