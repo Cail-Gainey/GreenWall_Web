@@ -61,10 +61,20 @@ export interface UserUpdateDto {
   id: string
   nickName?: string
   avatar?: string
-  email?: string
   phone?: string
   sex?: number
   status?: number
+  remark?: string
+}
+
+/**
+ * @description 个人资料更新请求。
+ */
+export interface UserProfileUpdateDto {
+  nickName?: string
+  email?: string
+  phone?: string
+  sex?: number
   remark?: string
 }
 
@@ -99,6 +109,23 @@ export interface UserDto {
   sex: number
   status: number
   createTime: string
+  lastLoginTime?: string
+  remark?: string
+  roles: string[]
+  permissions: string[]
+}
+
+/**
+ * @description 个人资料响应。
+ */
+export interface UserProfileDto {
+  id: string
+  account: string
+  nickName?: string
+  avatar?: string
+  email?: string
+  phone?: string
+  sex: number
   lastLoginTime?: string
   remark?: string
   roles: string[]

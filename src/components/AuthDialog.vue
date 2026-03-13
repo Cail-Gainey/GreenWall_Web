@@ -6,12 +6,12 @@ import { ref, computed } from 'vue'
 import { NModal, NCard, NTabs, NTabPane, NForm, NFormItem, NInput, NButton, NAlert, NSpace } from 'naive-ui'
 import { login, register, resetPassword, getMe } from '../api/auth'
 import { sendCode } from '../api/verifyCode'
-import type { UserDto } from '../api/types'
+import type { UserProfileDto } from '../api/types'
 import CaptchaInput from './CaptchaInput.vue'
 
 const emit = defineEmits<{
   close: []
-  loggedIn: [user: UserDto]
+  loggedIn: [user: UserProfileDto]
 }>()
 
 type Mode = 'login' | 'register' | 'forgot'

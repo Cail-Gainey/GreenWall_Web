@@ -5,18 +5,22 @@
 import { computed } from 'vue'
 import { NButton, NDropdown, NSpace, NAvatar } from 'naive-ui'
 import { useTheme, type Theme } from '../composables/useTheme'
-import type { UserDto } from '../api/types'
+import { usePermissionStore } from '../stores/permission'
+import type { UserProfileDto } from '../api/types'
+import userAvatarFallback from '../assets/user.png'
 
 const props = defineProps<{
-  user: UserDto | null
+  user: UserProfileDto | null
 }>()
 
 const emit = defineEmits<{
   openAuth: []
+  openProfile: []
   logout: []
 }>()
 
 const { currentTheme, setTheme } = useTheme()
+const { hasPermission } = usePermissionStore()
 
 const themeOptions = [
   { label: '浅色', key: 'light' },
@@ -26,11 +30,19 @@ const themeOptions = [
   { label: '系统', key: 'auto' },
 ]
 
-const profileOptions = [{ label: '退出登录', key: 'logout' }]
+const profileOptions = computed(() => {
+  const options: Array<{ label: string; key: string }> = []
+  if (hasPermission('app:profile:view')) {
+    options.push({ label: '个人信息', key: 'profile' })
+  }
+  options.push({ label: '退出登录', key: 'logout' })
+  return options
+})
 
-const userInitial = computed(() => {
-  if (!props.user) return '?'
-  return (props.user.nickName || props.user.account || '?').charAt(0).toUpperCase()
+
+const avatarSrc = computed(() => {
+  if (!props.user?.avatar) return userAvatarFallback
+  return props.user.avatar.trim()
 })
 
 function handleThemeSelect(key: string | number) {
@@ -38,6 +50,10 @@ function handleThemeSelect(key: string | number) {
 }
 
 function handleProfileSelect(key: string | number) {
+  if (key === 'profile') {
+    emit('openProfile')
+    return
+  }
   if (key === 'logout') emit('logout')
 }
 </script>
@@ -63,7 +79,12 @@ function handleProfileSelect(key: string | number) {
         <n-dropdown :options="profileOptions" @select="handleProfileSelect">
           <n-button quaternary size="small">
             <n-space align="center" size="small">
-              <n-avatar size="small">{{ userInitial }}</n-avatar>
+              <n-avatar
+                size="small"
+                :src="avatarSrc"
+                :fallback-src="userAvatarFallback"
+                :img-props="{ referrerpolicy: 'no-referrer' }"
+              />
               <span>{{ user.nickName || user.account }}</span>
             </n-space>
           </n-button>

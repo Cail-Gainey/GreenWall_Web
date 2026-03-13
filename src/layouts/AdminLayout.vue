@@ -5,13 +5,17 @@
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NLayout, NLayoutSider, NLayoutHeader, NLayoutContent, NMenu, NButton, NSpace, NAvatar } from 'naive-ui'
+import { logout } from '../api/auth'
+import { useGitHubStore } from '../stores/github'
 import { usePermissionStore } from '../stores/permission'
 import type { MenuTreeDto } from '../api/types'
 import type { MenuOption } from 'naive-ui'
+import userAvatarFallback from '../assets/user.png'
 
 const router = useRouter()
 const route = useRoute()
 const { menus, isLoaded, loadPermission, user } = usePermissionStore()
+const githubStore = useGitHubStore()
 
 onMounted(async () => {
   if (!isLoaded.value) {
@@ -49,13 +53,24 @@ function handleSelect(key: string) {
   router.push(key)
 }
 
-function handleLogout() {
+async function handleLogout() {
   const { reset } = usePermissionStore()
+  try {
+    await logout()
+  } catch {
+    // ignore logout errors, still clear local state
+  }
   reset()
   localStorage.removeItem('token')
   localStorage.removeItem('user')
+  githubStore.clear()
   router.push('/')
 }
+
+const avatarSrc = computed(() => {
+  if (!user.value?.avatar) return userAvatarFallback
+  return user.value.avatar.trim()
+})
 </script>
 
 <template>
@@ -80,7 +95,7 @@ function handleLogout() {
         <div class="header-title">管理后台</div>
         <n-space align="center">
           <n-space v-if="user" align="center" size="small">
-            <n-avatar size="small">{{ (user.nickName || user.account).slice(0, 1).toUpperCase() }}</n-avatar>
+            <n-avatar size="small" :src="avatarSrc" :fallback-src="userAvatarFallback" :img-props="{ referrerpolicy: 'no-referrer' }" />
             <span class="header-user">{{ user.nickName || user.account }}</span>
           </n-space>
           <n-button size="small" secondary @click="handleLogout">退出</n-button>

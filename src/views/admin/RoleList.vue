@@ -218,7 +218,7 @@ const columns = computed<DataTableColumns<RoleDto>>(() => [
     title: '操作',
     key: 'actions',
     render: (row) => {
-      const actions = []
+      const actions: any[] = []
       if (hasPermission('sys:role:edit')) {
         actions.push(
           h(

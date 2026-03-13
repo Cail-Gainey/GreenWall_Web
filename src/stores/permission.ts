@@ -4,11 +4,11 @@
 import { reactive, toRefs } from 'vue'
 import { getMe } from '../api/auth'
 import { getUserMenus } from '../api/permission'
-import type { UserDto, MenuTreeDto } from '../api/types'
+import type { UserProfileDto, MenuTreeDto } from '../api/types'
 
 interface PermissionState {
   /** 当前用户信息 */
-  user: UserDto | null
+  user: UserProfileDto | null
   /** 用户角色编码列表 */
   roles: string[]
   /** 用户权限标识列表 */
@@ -30,7 +30,7 @@ const state = reactive<PermissionState>({
 /**
  * @description 从后端加载权限数据 (调用 /Auth/me + /Permission/menus)。
  */
-async function loadPermission(): Promise<UserDto | null> {
+async function loadPermission(): Promise<UserProfileDto | null> {
   try {
     const res = await getMe()
     const user = res.data.data

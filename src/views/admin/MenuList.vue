@@ -250,7 +250,7 @@ const columns = computed<DataTableColumns<{ menu: MenuTreeDto; level: number }>>
     title: '操作',
     key: 'actions',
     render: (row) => {
-      const actions = []
+      const actions: any[] = []
       if (hasPermission('sys:menu:add')) {
         actions.push(
           h(

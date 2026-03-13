@@ -225,7 +225,6 @@ async function submitForm() {
   const updatePayload: UserUpdateDto = {
     id: form.value.id,
     nickName: form.value.nickName || undefined,
-    email: form.value.email || undefined,
     phone: form.value.phone || undefined,
     sex: form.value.sex,
     status: form.value.status,
@@ -343,7 +342,7 @@ const columns = computed<DataTableColumns<UserListItemDto>>(() => [
     title: '操作',
     key: 'actions',
     render: (row) => {
-      const actions = []
+      const actions: any[] = []
       if (hasPermission('sys:user:edit')) {
         actions.push(
           h(
@@ -438,7 +437,7 @@ onMounted(async () => {
             <n-input v-model:value="form.nickName" placeholder="用户昵称" />
           </n-form-item>
           <n-form-item label="邮箱">
-            <n-input v-model:value="form.email" placeholder="邮箱地址" />
+            <n-input v-model:value="form.email" placeholder="邮箱地址" :disabled="formMode === 'edit'" />
           </n-form-item>
           <n-form-item label="手机号">
             <n-input v-model:value="form.phone" placeholder="手机号" />

@@ -2,18 +2,22 @@
 /**
  * @file 用户端布局：Naive UI Layout + 认证弹窗。
  */
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { NLayout, NLayoutHeader, NLayoutContent } from 'naive-ui'
 import Header from '../components/Header.vue'
+import ProfileDialog from '../components/ProfileDialog.vue'
 import AuthDialog from '../components/AuthDialog.vue'
-import { getMe } from '../api/auth'
+import { getMe, logout } from '../api/auth'
 import { usePermissionStore } from '../stores/permission'
-import type { UserDto } from '../api/types'
+import { useGitHubStore } from '../stores/github'
+import type { UserProfileDto } from '../api/types'
 
 const showAuthDialog = ref(false)
-const currentUser = ref<UserDto | null>(null)
+const showProfileDialog = ref(false)
+const currentUser = ref<UserProfileDto | null>(null)
 const permissionStore = usePermissionStore()
+const githubStore = useGitHubStore()
 const router = useRouter()
 
 onMounted(async () => {
@@ -44,7 +48,17 @@ onMounted(async () => {
   }
 })
 
-async function onLoggedIn(user: UserDto) {
+watch(
+  () => permissionStore.user.value,
+  (val) => {
+    if (val) {
+      currentUser.value = val
+    }
+  },
+  { immediate: true },
+)
+
+async function onLoggedIn(user: UserProfileDto) {
   currentUser.value = user
   showAuthDialog.value = false
   await permissionStore.loadPermission()
@@ -67,10 +81,20 @@ async function onLoggedIn(user: UserDto) {
   router.push('/')
 }
 
-function onLogout() {
+function onOpenProfile() {
+  showProfileDialog.value = true
+}
+
+async function onLogout() {
+  try {
+    await logout()
+  } catch {
+    // ignore logout errors, still clear local state
+  }
   currentUser.value = null
   localStorage.removeItem('token')
   localStorage.removeItem('user')
+  githubStore.clear()
   permissionStore.reset()
 }
 </script>
@@ -81,6 +105,7 @@ function onLogout() {
       <Header
         :user="currentUser"
         @open-auth="showAuthDialog = true"
+        @open-profile="onOpenProfile"
         @logout="onLogout"
       />
     </n-layout-header>
@@ -90,6 +115,7 @@ function onLogout() {
   </n-layout>
 
   <AuthDialog v-if="showAuthDialog" @close="showAuthDialog = false" @logged-in="onLoggedIn" />
+  <ProfileDialog v-model:show="showProfileDialog" />
 </template>
 
 <style scoped>

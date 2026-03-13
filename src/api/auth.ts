@@ -2,7 +2,7 @@
  * @file 认证相关接口封装。
  */
 import request from './request'
-import type { ApiResult, LoginDto, RegisterDto, ResetPasswordDto, TokenDto, UserDto } from './types'
+import type { ApiResult, LoginDto, RegisterDto, ResetPasswordDto, TokenDto, UserProfileDto } from './types'
 
 /**
  * @description 账号密码登录。
@@ -32,5 +32,12 @@ export function resetPassword(data: ResetPasswordDto) {
  * @description 获取当前已登录用户信息（需 JWT）。
  */
 export function getMe() {
-  return request.get<ApiResult<UserDto>>('/Auth/me')
+  return request.get<ApiResult<UserProfileDto>>('/Auth/me')
+}
+
+/**
+ * @description 退出登录（清理后端缓存）。
+ */
+export function logout() {
+  return request.post<ApiResult<boolean>>('/Auth/logout')
 }

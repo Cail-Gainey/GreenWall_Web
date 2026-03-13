@@ -2,7 +2,7 @@
  * @file 用户管理接口封装。
  */
 import request from './request'
-import type { ApiResult, PageResult, UserCreateDto, UserDto, UserListItemDto, UserQueryDto, UserUpdateDto } from './types'
+import type { ApiResult, PageResult, UserCreateDto, UserDto, UserListItemDto, UserProfileUpdateDto, UserQueryDto, UserUpdateDto } from './types'
 
 /**
  * @description 创建用户（需要 sys:user:add 权限）。
@@ -34,6 +34,26 @@ export function getUserPage(params: UserQueryDto) {
  */
 export function updateUser(data: UserUpdateDto) {
   return request.put<ApiResult<boolean>>('/User', data)
+}
+
+/**
+ * @description 更新个人资料（需要 app:profile:edit 权限）。
+ * @param {UserProfileUpdateDto} data 个人资料更新参数。
+ */
+export function updateProfile(data: UserProfileUpdateDto) {
+  return request.put<ApiResult<boolean>>('/User/profile', data)
+}
+
+/**
+ * @description 上传头像（需要 app:profile:edit 权限）。
+ * @param file 头像文件
+ */
+export function uploadAvatar(file: File) {
+  const form = new FormData()
+  form.append('file', file)
+  return request.post<ApiResult<string>>('/User/avatar', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
 }
 
 /**
