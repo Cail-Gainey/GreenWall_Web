@@ -11,45 +11,44 @@ import AuthDialog from '../components/AuthDialog.vue'
 import { getMe, logout } from '../api/auth'
 import { usePermissionStore } from '../stores/permission'
 import { useGitHubStore } from '../stores/github'
+import { storeToRefs } from 'pinia'
+import { useMenuTreeStore } from '../stores/menuTree'
+import { useRoleListStore } from '../stores/roleList'
+import { useUserListStore } from '../stores/userList'
+import { usePushRecordStore } from '../stores/pushRecord'
 import type { UserProfileDto } from '../api/types'
 
 const showAuthDialog = ref(false)
 const showProfileDialog = ref(false)
 const currentUser = ref<UserProfileDto | null>(null)
 const permissionStore = usePermissionStore()
+const { isLoaded, user } = storeToRefs(permissionStore)
 const githubStore = useGitHubStore()
+const menuTreeStore = useMenuTreeStore()
+const roleListStore = useRoleListStore()
+const userListStore = useUserListStore()
+const pushRecordStore = usePushRecordStore()
 const router = useRouter()
 
 onMounted(async () => {
-  const stored = localStorage.getItem('user')
-  if (stored) {
-    try {
-      currentUser.value = JSON.parse(stored)
-    } catch {
-      currentUser.value = null
-    }
-  }
-
   const token = localStorage.getItem('token')
   if (token) {
     try {
       const res = await getMe()
       currentUser.value = res.data.data
-      localStorage.setItem('user', JSON.stringify(res.data.data))
-      if (!permissionStore.isLoaded.value) {
+      if (!isLoaded.value) {
         await permissionStore.loadPermission()
       }
     } catch {
       currentUser.value = null
       localStorage.removeItem('token')
-      localStorage.removeItem('user')
       permissionStore.reset()
     }
   }
 })
 
 watch(
-  () => permissionStore.user.value,
+  () => user.value,
   (val) => {
     if (val) {
       currentUser.value = val
@@ -93,9 +92,12 @@ async function onLogout() {
   }
   currentUser.value = null
   localStorage.removeItem('token')
-  localStorage.removeItem('user')
   githubStore.clear()
   permissionStore.reset()
+  menuTreeStore.reset()
+  roleListStore.reset()
+  userListStore.reset()
+  pushRecordStore.reset()
 }
 </script>
 

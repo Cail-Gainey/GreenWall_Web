@@ -11,11 +11,22 @@ import { usePermissionStore } from '../stores/permission'
 import type { MenuTreeDto } from '../api/types'
 import type { MenuOption } from 'naive-ui'
 import userAvatarFallback from '../assets/user.png'
+import { storeToRefs } from 'pinia'
+import { useMenuTreeStore } from '../stores/menuTree'
+import { useRoleListStore } from '../stores/roleList'
+import { useUserListStore } from '../stores/userList'
+import { usePushRecordStore } from '../stores/pushRecord'
 
 const router = useRouter()
 const route = useRoute()
-const { menus, isLoaded, loadPermission, user } = usePermissionStore()
+const permissionStore = usePermissionStore()
+const { menus, isLoaded, user } = storeToRefs(permissionStore)
+const { loadPermission } = permissionStore
 const githubStore = useGitHubStore()
+const menuTreeStore = useMenuTreeStore()
+const roleListStore = useRoleListStore()
+const userListStore = useUserListStore()
+const pushRecordStore = usePushRecordStore()
 
 onMounted(async () => {
   if (!isLoaded.value) {
@@ -64,6 +75,10 @@ async function handleLogout() {
   localStorage.removeItem('token')
   localStorage.removeItem('user')
   githubStore.clear()
+  menuTreeStore.reset()
+  roleListStore.reset()
+  userListStore.reset()
+  pushRecordStore.reset()
   router.push('/')
 }
 

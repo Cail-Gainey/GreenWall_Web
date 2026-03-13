@@ -2,6 +2,7 @@
  * @file 应用路由配置：区分用户端与管理端布局，包含路由守卫。
  */
 import { createRouter, createWebHistory } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { usePermissionStore } from '../stores/permission'
 
 /**
@@ -81,7 +82,9 @@ const router = createRouter({
  */
 router.beforeEach(async (to) => {
   const token = localStorage.getItem('token')
-  const { isLoaded, loadPermission, hasRole, hasPermission } = usePermissionStore()
+  const permissionStore = usePermissionStore()
+  const { isLoaded } = storeToRefs(permissionStore)
+  const { loadPermission, hasRole, hasPermission } = permissionStore
 
   // 不需要认证的路由直接放行
   if (!to.matched.some((r) => r.meta.requiresAuth)) {

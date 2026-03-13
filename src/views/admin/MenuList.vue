@@ -19,7 +19,8 @@ import {
   NTag,
   type DataTableColumns,
 } from 'naive-ui'
-import { createMenu, deleteMenu, getMenuById, getMenuTree, updateMenu } from '../../api/menu'
+import { createMenu, deleteMenu, getMenuById, updateMenu } from '../../api/menu'
+import { useMenuTreeStore } from '../../stores/menuTree'
 import { usePermissionStore } from '../../stores/permission'
 import type { MenuCreateDto, MenuTreeDto, MenuUpdateDto } from '../../api/types'
 
@@ -31,7 +32,9 @@ const isError = ref(false)
 const showForm = ref(false)
 const formMode = ref<'create' | 'edit'>('create')
 
-const { hasPermission } = usePermissionStore()
+const permissionStore = usePermissionStore()
+const { hasPermission, loadPermission } = permissionStore
+const menuTreeStore = useMenuTreeStore()
 
 const form = ref({
   id: '',
@@ -90,8 +93,7 @@ async function fetchMenus() {
   loading.value = true
   clearMsg()
   try {
-    const res = await getMenuTree()
-    menus.value = res.data.data || []
+    menus.value = await menuTreeStore.fetch()
   } catch (e: any) {
     showMsg(e.message, true)
   } finally {
@@ -166,6 +168,8 @@ async function submitForm() {
     try {
       await createMenu(payload)
       showMsg('创建成功')
+      await loadPermission()
+      await menuTreeStore.fetch(true)
       showForm.value = false
       fetchMenus()
     } catch (e: any) {
@@ -191,6 +195,8 @@ async function submitForm() {
   try {
     await updateMenu(payload)
     showMsg('更新成功')
+    await loadPermission()
+    await menuTreeStore.fetch(true)
     showForm.value = false
     fetchMenus()
   } catch (e: any) {
@@ -203,6 +209,8 @@ async function handleDelete(menu: MenuTreeDto) {
   try {
     await deleteMenu(menu.id)
     showMsg('删除成功')
+    await loadPermission()
+    await menuTreeStore.fetch(true)
     fetchMenus()
   } catch (e: any) {
     showMsg(e.message, true)

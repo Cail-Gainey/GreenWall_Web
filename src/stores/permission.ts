@@ -1,7 +1,7 @@
 /**
- * @file 权限状态管理 Store，使用 Vue reactive 实现。
+ * @file 权限状态管理 Store，使用 Pinia + 持久化。
  */
-import { reactive, toRefs } from 'vue'
+import { defineStore } from 'pinia'
 import { getMe } from '../api/auth'
 import { getUserMenus } from '../api/permission'
 import type { UserProfileDto, MenuTreeDto } from '../api/types'
@@ -19,74 +19,67 @@ interface PermissionState {
   isLoaded: boolean
 }
 
-const state = reactive<PermissionState>({
-  user: null,
-  roles: [],
-  permissions: [],
-  menus: [],
-  isLoaded: false,
+export const usePermissionStore = defineStore('permission', {
+  state: (): PermissionState => ({
+    user: null,
+    roles: [],
+    permissions: [],
+    menus: [],
+    isLoaded: false,
+  }),
+  actions: {
+    /**
+     * @description 从后端加载权限数据 (调用 /Auth/me + /Permission/menus)。
+     */
+    async loadPermission(): Promise<UserProfileDto | null> {
+      try {
+        const res = await getMe()
+        const user = res.data.data
+        this.user = user
+        this.roles = user.roles || []
+        this.permissions = user.permissions || []
+
+        // 加载菜单树
+        try {
+          const menuRes = await getUserMenus()
+          this.menus = menuRes.data.data || []
+        } catch {
+          this.menus = []
+        }
+
+        this.isLoaded = true
+        return user
+      } catch {
+        this.reset()
+        return null
+      }
+    },
+    /**
+     * @description 判断当前用户是否拥有指定权限。
+     */
+    hasPermission(perm: string): boolean {
+      if (this.roles.includes('admin')) return true
+      return this.permissions.includes(perm)
+    },
+    /**
+     * @description 判断当前用户是否拥有指定角色。
+     */
+    hasRole(role: string): boolean {
+      return this.roles.includes(role)
+    },
+    /**
+     * @description 清空所有权限状态。
+     */
+    reset() {
+      this.user = null
+      this.roles = []
+      this.permissions = []
+      this.menus = []
+      this.isLoaded = false
+    },
+  },
+  persist: {
+    key: 'permission_store',
+    paths: ['user', 'roles', 'permissions', 'menus', 'isLoaded'],
+  },
 })
-
-/**
- * @description 从后端加载权限数据 (调用 /Auth/me + /Permission/menus)。
- */
-async function loadPermission(): Promise<UserProfileDto | null> {
-  try {
-    const res = await getMe()
-    const user = res.data.data
-    state.user = user
-    state.roles = user.roles || []
-    state.permissions = user.permissions || []
-    localStorage.setItem('user', JSON.stringify(user))
-
-    // 加载菜单树
-    try {
-      const menuRes = await getUserMenus()
-      state.menus = menuRes.data.data || []
-    } catch {
-      state.menus = []
-    }
-
-    state.isLoaded = true
-    return user
-  } catch {
-    reset()
-    return null
-  }
-}
-
-/**
- * @description 判断当前用户是否拥有指定权限。
- */
-function hasPermission(perm: string): boolean {
-  if (state.roles.includes('admin')) return true
-  return state.permissions.includes(perm)
-}
-
-/**
- * @description 判断当前用户是否拥有指定角色。
- */
-function hasRole(role: string): boolean {
-  return state.roles.includes(role)
-}
-
-/**
- * @description 清空所有权限状态。
- */
-function reset() {
-  state.user = null
-  state.roles = []
-  state.permissions = []
-  state.menus = []
-  state.isLoaded = false
-}
-
-export function usePermissionStore() {
-  return {
-    ...toRefs(state),
-    loadPermission,
-    hasPermission,
-    hasRole,
-    reset,
-  }
-}

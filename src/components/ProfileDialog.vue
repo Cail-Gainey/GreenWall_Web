@@ -7,6 +7,7 @@ import { NAlert, NAvatar, NButton, NCard, NForm, NFormItemGi, NGrid, NInput, NMo
 import { getMe } from '../api/auth'
 import { updateProfile, uploadAvatar } from '../api/user'
 import { usePermissionStore } from '../stores/permission'
+import { storeToRefs } from 'pinia'
 import type { UserProfileDto, UserProfileUpdateDto } from '../api/types'
 import userAvatarFallback from '../assets/user.png'
 import 'vue-cropper/dist/index.css'
@@ -20,7 +21,9 @@ const emit = defineEmits<{
   'update:show': [value: boolean]
 }>()
 
-const { hasPermission, loadPermission, user } = usePermissionStore()
+const permissionStore = usePermissionStore()
+const { user } = storeToRefs(permissionStore)
+const { hasPermission, loadPermission } = permissionStore
 
 const loading = ref(false)
 const saving = ref(false)

@@ -20,8 +20,9 @@ import {
   NCheckboxGroup,
   type DataTableColumns,
 } from 'naive-ui'
-import { createRole, deleteRole, getAllRoles, getRoleById, updateRole } from '../../api/role'
-import { getMenuTree } from '../../api/menu'
+import { createRole, deleteRole, getRoleById, updateRole } from '../../api/role'
+import { useRoleListStore } from '../../stores/roleList'
+import { useMenuTreeStore } from '../../stores/menuTree'
 import { usePermissionStore } from '../../stores/permission'
 import type { MenuTreeDto, RoleCreateDto, RoleDto, RoleUpdateDto } from '../../api/types'
 
@@ -34,7 +35,10 @@ const isError = ref(false)
 const showForm = ref(false)
 const formMode = ref<'create' | 'edit'>('create')
 
-const { hasPermission } = usePermissionStore()
+const permissionStore = usePermissionStore()
+const { hasPermission, loadPermission } = permissionStore
+const roleListStore = useRoleListStore()
+const menuTreeStore = useMenuTreeStore()
 
 const form = ref({
   id: '',
@@ -88,8 +92,7 @@ async function fetchRoles() {
   loading.value = true
   clearMsg()
   try {
-    const res = await getAllRoles()
-    roles.value = res.data.data || []
+    roles.value = await roleListStore.fetch()
   } catch (e: any) {
     showMsg(e.message, true)
   } finally {
@@ -99,8 +102,7 @@ async function fetchRoles() {
 
 async function fetchMenus() {
   try {
-    const res = await getMenuTree()
-    menus.value = res.data.data || []
+    menus.value = await menuTreeStore.fetch()
   } catch (e: any) {
     showMsg(e.message, true)
   }
@@ -161,6 +163,8 @@ async function submitForm() {
     try {
       await createRole(payload)
       showMsg('创建成功')
+      await loadPermission()
+      await roleListStore.fetch(true)
       showForm.value = false
       fetchRoles()
     } catch (e: any) {
@@ -181,6 +185,8 @@ async function submitForm() {
   try {
     await updateRole(payload)
     showMsg('更新成功')
+    await loadPermission()
+    await roleListStore.fetch(true)
     showForm.value = false
     fetchRoles()
   } catch (e: any) {
@@ -193,6 +199,8 @@ async function handleDelete(role: RoleDto) {
   try {
     await deleteRole(role.id)
     showMsg('删除成功')
+    await loadPermission()
+    await roleListStore.fetch(true)
     fetchRoles()
   } catch (e: any) {
     showMsg(e.message, true)

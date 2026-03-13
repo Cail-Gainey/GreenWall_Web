@@ -20,9 +20,10 @@ import {
   NTag,
   type DataTableColumns,
 } from 'naive-ui'
-import { createUser, deleteUser, getUserPage, updateUser } from '../../api/user'
-import { getAllRoles } from '../../api/role'
+import { createUser, deleteUser, updateUser } from '../../api/user'
+import { useRoleListStore } from '../../stores/roleList'
 import { assignUserRoles } from '../../api/permission'
+import { useUserListStore } from '../../stores/userList'
 import { usePermissionStore } from '../../stores/permission'
 import type {
   RoleDto,
@@ -64,7 +65,10 @@ const form = ref({
 const assignUser = ref<UserListItemDto | null>(null)
 const assignRoleIds = ref<string[]>([])
 
-const { hasPermission } = usePermissionStore()
+const permissionStore = usePermissionStore()
+const { hasPermission, loadPermission } = permissionStore
+const userListStore = useUserListStore()
+const roleListStore = useRoleListStore()
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(total.value / pageSize.value)),
@@ -126,13 +130,12 @@ async function fetchUsers() {
   loading.value = true
   clearMsg()
   try {
-    const res = await getUserPage({
+    const page = await userListStore.fetch({
       pageIndex: pageIndex.value,
       pageSize: pageSize.value,
       keyword: keyword.value.trim() || undefined,
       status: status.value === 'all' ? undefined : Number(status.value),
     })
-    const page = res.data.data
     users.value = page.items || []
     total.value = Number(page.total || 0)
   } catch (e: any) {
@@ -144,8 +147,7 @@ async function fetchUsers() {
 
 async function fetchRoles() {
   try {
-    const res = await getAllRoles()
-    roles.value = res.data.data || []
+    roles.value = await roleListStore.fetch()
   } catch (e: any) {
     showMsg(e.message, true)
   }
@@ -214,6 +216,16 @@ async function submitForm() {
     try {
       await createUser(payload)
       showMsg('创建成功')
+      await loadPermission()
+      await userListStore.fetch(
+        {
+          pageIndex: pageIndex.value,
+          pageSize: pageSize.value,
+          keyword: keyword.value.trim() || undefined,
+          status: status.value === 'all' ? undefined : Number(status.value),
+        },
+        true,
+      )
       showForm.value = false
       fetchUsers()
     } catch (e: any) {
@@ -233,6 +245,16 @@ async function submitForm() {
   try {
     await updateUser(updatePayload)
     showMsg('更新成功')
+    await loadPermission()
+    await userListStore.fetch(
+      {
+        pageIndex: pageIndex.value,
+        pageSize: pageSize.value,
+        keyword: keyword.value.trim() || undefined,
+        status: status.value === 'all' ? undefined : Number(status.value),
+      },
+      true,
+    )
     showForm.value = false
     fetchUsers()
   } catch (e: any) {
@@ -245,6 +267,16 @@ async function handleDelete(user: UserListItemDto) {
   try {
     await deleteUser(user.id)
     showMsg('删除成功')
+    await loadPermission()
+    await userListStore.fetch(
+      {
+        pageIndex: pageIndex.value,
+        pageSize: pageSize.value,
+        keyword: keyword.value.trim() || undefined,
+        status: status.value === 'all' ? undefined : Number(status.value),
+      },
+      true,
+    )
     if (users.value.length === 1 && pageIndex.value > 1) {
       pageIndex.value--
     }
@@ -271,6 +303,16 @@ async function submitAssign() {
       roleIds: assignRoleIds.value,
     })
     showMsg('角色分配成功')
+    await loadPermission()
+    await userListStore.fetch(
+      {
+        pageIndex: pageIndex.value,
+        pageSize: pageSize.value,
+        keyword: keyword.value.trim() || undefined,
+        status: status.value === 'all' ? undefined : Number(status.value),
+      },
+      true,
+    )
     showRoleDialog.value = false
     fetchUsers()
   } catch (e: any) {

@@ -5,7 +5,8 @@
 import { ref, inject, watch, computed, onBeforeUnmount, type Ref } from 'vue';
 import { useGitHubStore } from '../stores/github';
 import { usePermissionStore } from '../stores/permission';
-import { pushGithubContributions, getGithubPushStatus, getGithubRecentPushes } from '../api/github';
+import { pushGithubContributions, getGithubPushStatus } from '../api/github';
+import { usePushRecordStore } from '../stores/pushRecord';
 import {
   useDialog,
   NIcon,
@@ -48,6 +49,7 @@ const yearOptions = computed(() => {
 });
 
 const githubStore = useGitHubStore();
+const pushRecordStore = usePushRecordStore();
 const { hasPermission } = usePermissionStore();
 const dialog = useDialog();
 const githubProfile = computed(() => githubStore.profile);
@@ -198,8 +200,7 @@ const loadRecentPushes = async () => {
     return;
   }
   try {
-    const res = await getGithubRecentPushes(login);
-    recentPushes.value = res.data.data || [];
+    recentPushes.value = await pushRecordStore.fetchRecent(login);
   } catch (e: any) {
     recentError.value = e?.message || '获取记录失败';
   } finally {
@@ -259,7 +260,11 @@ const confirmPush = async () => {
       year: currentYear.value,
       cells,
     };
-    const res = await pushGithubContributions(payload);
+      const res = await pushGithubContributions(payload);
+      const login = githubLogin.value;
+      if (login) {
+        await pushRecordStore.fetchRecent(login, true);
+      }
     showPushDialog.value = false;
     dialog.success({
       title: '已入队',
