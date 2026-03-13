@@ -544,6 +544,40 @@ export interface LoginLogDto {
   createTime: string
 }
 
+export interface ServerLogQueryDto {
+  pageIndex?: number
+  pageSize?: number
+  keyword?: string
+  event?: string
+  level?: number
+  startTime?: string
+  endTime?: string
+}
+
+export interface ServerLogDto {
+  id: string
+  level: number
+  event: string
+  message?: string
+  detail?: string
+  traceId?: string
+  method?: string
+  path?: string
+  ip?: string
+  userId?: string
+  userName?: string
+  machineName?: string
+  environment?: string
+  appVersion?: string
+  createTime: string
+}
+
+export interface ServerLogFileDto {
+  name: string
+  size: number
+  lastWriteTime: string
+}
+
 // ========== 数据字典 ==========
 
 export interface DictTypeQueryDto {

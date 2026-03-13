@@ -3,9 +3,9 @@
  * @file 操作日志视图。
  */
 import { h, onMounted, ref } from 'vue'
-import { NCard, NDataTable, NInput, NSelect, NButton, NSpace, NTag, NPagination } from 'naive-ui'
+import { NCard, NDataTable, NInput, NSelect, NButton, NSpace, NTag, NPagination, useDialog, useMessage } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
-import { getOperLogs } from '../../api/log'
+import { clearOperLogs, getOperLogs } from '../../api/log'
 import type { OperLogDto } from '../../api/types'
 
 const loading = ref(false)
@@ -15,6 +15,9 @@ const logs = ref<OperLogDto[]>([])
 const pageIndex = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
+const dialog = useDialog()
+const message = useMessage()
+const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8888/api'
 
 const statusOptions = [
   { label: '全部', value: null },
@@ -36,6 +39,64 @@ const fetchLogs = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const buildDownloadUrl = () => {
+  const params = new URLSearchParams()
+  if (keyword.value) params.set('keyword', keyword.value)
+  if (status.value) params.set('status', String(status.value))
+  return `${apiBase}/logs/oper/download?${params.toString()}`
+}
+
+const downloadLogs = async () => {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    message.warning('未检测到登录凭证，无法下载')
+    return
+  }
+  try {
+    const res = await fetch(buildDownloadUrl(), {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) {
+      message.error(`下载失败: HTTP ${res.status}`)
+      return
+    }
+    const contentType = res.headers.get('content-type') || ''
+    if (contentType.includes('application/json')) {
+      const json = await res.json()
+      message.error(json.msg || '下载失败')
+      return
+    }
+    const blob = await res.blob()
+    const fileName = res.headers.get('content-disposition')?.split('filename=')[1]?.replace(/\"/g, '') || 'oper-logs.csv'
+    const blobUrl = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = blobUrl
+    link.download = fileName
+    link.click()
+    window.URL.revokeObjectURL(blobUrl)
+  } catch (err: any) {
+    message.error(err?.message || '下载失败')
+  }
+}
+
+const confirmClear = () => {
+  dialog.warning({
+    title: '确认清空操作日志',
+    content: '该操作会清空全部操作日志且无法恢复，是否继续？',
+    positiveText: '确认',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await clearOperLogs()
+        message.success('操作日志已清空')
+        await fetchLogs()
+      } catch (err: any) {
+        message.error(err?.message || '清空失败')
+      }
+    },
+  })
 }
 
 const columns = ref<DataTableColumns<OperLogDto>>([
@@ -64,7 +125,11 @@ onMounted(fetchLogs)
         <n-input v-model:value="keyword" placeholder="关键字" style="width: 220px" />
         <n-select v-model:value="status" :options="statusOptions" style="width: 140px" />
       </n-space>
-      <n-button type="primary" @click="fetchLogs" :loading="loading">查询</n-button>
+      <n-space>
+        <n-button type="primary" @click="fetchLogs" :loading="loading">查询</n-button>
+        <n-button secondary @click="downloadLogs">下载</n-button>
+        <n-button secondary @click="confirmClear">清空</n-button>
+      </n-space>
     </n-space>
 
     <n-space vertical size="large" style="margin-top: 12px;">

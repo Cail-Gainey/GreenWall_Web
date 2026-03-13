@@ -107,6 +107,12 @@ const router = createRouter({
           name: 'admin-login-logs',
           component: () => import('../views/admin/LoginLogView.vue'),
           meta: { permission: 'sys:log:login' }
+        },
+        {
+          path: 'logs/server',
+          name: 'admin-server-logs',
+          component: () => import('../views/admin/ServerLogView.vue'),
+          meta: { permission: 'sys:log:server' }
         }
       ]
     },
