@@ -3,6 +3,9 @@
  */
 import { defineStore } from 'pinia'
 
+/**
+ * @description 社区页面交互状态管理。
+ */
 export const useCommunityUiStore = defineStore('communityUi', {
   state: () => ({
     openUpload: false,

@@ -11,6 +11,9 @@ import type {
   PatternUpdateDto,
 } from './types'
 
+/**
+ * @description 社区排序字段。
+ */
 export type PatternSort = 'view' | 'like' | 'favorite'
 
 /**

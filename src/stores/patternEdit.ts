@@ -4,6 +4,9 @@
 import { defineStore } from 'pinia'
 import type { PatternCellDto } from '../api/types'
 
+/**
+ * @description 待编辑图案数据。
+ */
 export interface PatternEditPayload {
   id: string
   title: string
@@ -14,6 +17,9 @@ export interface PatternEditPayload {
   cells: PatternCellDto[]
 }
 
+/**
+ * @description 图案编辑状态管理。
+ */
 export const usePatternEditStore = defineStore('patternEdit', {
   state: () => ({
     pending: null as PatternEditPayload | null,

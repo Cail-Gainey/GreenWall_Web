@@ -4,6 +4,9 @@
 import { defineStore } from 'pinia'
 import type { PatternCellDto } from '../api/types'
 
+/**
+ * @description 待导入图案数据。
+ */
 export interface PatternImportPayload {
   title?: string
   year: number
