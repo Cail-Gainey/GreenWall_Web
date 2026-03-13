@@ -77,6 +77,12 @@ const router = createRouter({
           name: 'admin-monitor',
           component: () => import('../views/admin/MonitorView.vue'),
           meta: { permission: 'sys:monitor:view' }
+        },
+        {
+          path: 'settings',
+          name: 'admin-settings',
+          component: () => import('../views/admin/SystemSettingsView.vue'),
+          meta: { permission: 'sys:config:view' }
         }
       ]
     },

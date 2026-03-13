@@ -2,12 +2,13 @@
 /**
  * @file 贡献图组件：按年份渲染可绘制的日历网格。
  */
-import { ref, inject, watch, computed, onBeforeUnmount, type Ref } from 'vue';
+import { ref, inject, watch, computed, onBeforeUnmount, onMounted, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useGitHubStore } from '../stores/github';
 import { usePermissionStore } from '../stores/permission';
 import { pushGithubContributions, getGithubPushStatus } from '../api/github';
 import { createPattern } from '../api/patternCommunity';
+import { getPublicSystemConfig } from '../api/systemConfig';
 import { usePushRecordStore } from '../stores/pushRecord';
 import { usePatternImportStore } from '../stores/patternImport';
 import { getYearMeta } from '../utils/graph';
@@ -67,7 +68,8 @@ const isGithubConnected = computed(() => !!githubProfile.value);
 const githubLogin = computed(() => githubProfile.value?.login || '');
 const githubUrl = computed(() => githubProfile.value?.htmlUrl || '');
 const githubAvatar = computed(() => githubProfile.value?.avatarUrl || '');
-const canGithubConnect = computed(() => hasPermission('app:github:connect'));
+const githubOAuthEnabled = ref(true);
+const canGithubConnect = computed(() => githubOAuthEnabled.value && hasPermission('app:github:connect'));
 const canGithubDisconnect = computed(() => hasPermission('app:github:disconnect'));
 const canGithubPush = computed(() => hasPermission('app:github:push'));
 const canGithubStatus = computed(() => hasPermission('app:github:push:status'));
@@ -87,6 +89,10 @@ const canUseTool = (tool: string) => {
   return perm ? hasPermission(perm) : true;
 };
 const connectGithub = () => {
+  if (!githubOAuthEnabled.value) {
+    message.warning('GitHub OAuth 已关闭');
+    return;
+  }
   const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api';
   window.location.href = `${apiBase}/github/authorize`;
 };
@@ -462,6 +468,15 @@ const openQueryDialog = () => {
     void loadRecentPushes();
   }
 };
+
+onMounted(async () => {
+  try {
+    const res = await getPublicSystemConfig();
+    githubOAuthEnabled.value = res.data.data.githubOAuthEnabled;
+  } catch {
+    githubOAuthEnabled.value = true;
+  }
+});
 
 onBeforeUnmount(() => {
   if (pushStatusTimer) {

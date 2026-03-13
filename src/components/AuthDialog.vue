@@ -2,10 +2,11 @@
 /**
  * @file 认证弹窗：Naive UI Tabs + Form.
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { NModal, NCard, NTabs, NTabPane, NForm, NFormItem, NInput, NButton, NAlert, NSpace } from 'naive-ui'
 import { login, register, resetPassword, getMe } from '../api/auth'
 import { sendCode } from '../api/verifyCode'
+import { getPublicSystemConfig } from '../api/systemConfig'
 import type { UserProfileDto } from '../api/types'
 import CaptchaInput from './CaptchaInput.vue'
 
@@ -22,6 +23,8 @@ const message = ref('')
 const isError = ref(false)
 const countdown = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
+const allowRegister = ref(true)
+const emailVerifyEnabled = ref(true)
 
 const loginAccount = ref('')
 const loginPassword = ref('')
@@ -71,6 +74,14 @@ function startCountdown() {
 }
 
 async function handleSendCode(email: string) {
+  if (!emailVerifyEnabled.value) {
+    showMsg('邮箱验证码功能已关闭', true)
+    return
+  }
+  if (mode.value === 'register' && !allowRegister.value) {
+    showMsg('系统已关闭注册', true)
+    return
+  }
   if (!email.includes('@') || !canSendCode.value) return
 
   const captchaId = mode.value === 'register' ? regCaptchaId.value : forgotCaptchaId.value
@@ -123,12 +134,16 @@ async function handleLogin() {
 }
 
 async function handleRegister() {
+  if (!allowRegister.value) {
+    showMsg('系统已关闭注册', true)
+    return
+  }
   if (
     !regAccount.value ||
     regPassword.value.length < 6 ||
     regConfirmPassword.value !== regPassword.value ||
     !regEmail.value.includes('@') ||
-    regCode.value.length !== 6
+    (emailVerifyEnabled.value && regCode.value.length !== 6)
   ) return
   loading.value = true
   clearMsg()
@@ -156,7 +171,7 @@ async function handleRegister() {
 async function handleReset() {
   if (
     !forgotEmail.value.includes('@') ||
-    forgotCode.value.length !== 6 ||
+    (emailVerifyEnabled.value && forgotCode.value.length !== 6) ||
     forgotNewPassword.value.length < 6 ||
     forgotConfirmPassword.value !== forgotNewPassword.value
   ) return
@@ -177,6 +192,20 @@ async function handleReset() {
     loading.value = false
   }
 }
+
+onMounted(async () => {
+  try {
+    const res = await getPublicSystemConfig()
+    allowRegister.value = res.data.data.allowRegister
+    emailVerifyEnabled.value = res.data.data.emailVerifyEnabled
+    if (!allowRegister.value && mode.value === 'register') {
+      mode.value = 'login'
+    }
+  } catch {
+    allowRegister.value = true
+    emailVerifyEnabled.value = true
+  }
+})
 </script>
 
 <template>
@@ -201,7 +230,7 @@ async function handleReset() {
           </n-form>
         </n-tab-pane>
 
-        <n-tab-pane name="register" tab="注册">
+        <n-tab-pane v-if="allowRegister" name="register" tab="注册">
           <n-form>
             <n-form-item label="账号">
               <n-input v-model:value="regAccount" placeholder="请输入账号" />
@@ -215,10 +244,10 @@ async function handleReset() {
             <n-form-item label="邮箱">
               <n-input v-model:value="regEmail" placeholder="email@example.com" />
             </n-form-item>
-            <n-form-item label="图片验证码">
+            <n-form-item v-if="emailVerifyEnabled" label="图片验证码">
               <CaptchaInput v-model:captchaId="regCaptchaId" v-model:captchaCode="regCaptchaCode" ref="regCaptchaRef" />
             </n-form-item>
-            <n-form-item label="邮箱验证码">
+            <n-form-item v-if="emailVerifyEnabled" label="邮箱验证码">
               <n-space>
                 <n-input v-model:value="regCode" placeholder="6 位验证码" style="width: 160px;" />
                 <n-button :disabled="!canSendCode" @click="handleSendCode(regEmail)">
@@ -238,10 +267,10 @@ async function handleReset() {
             <n-form-item label="邮箱">
               <n-input v-model:value="forgotEmail" placeholder="email@example.com" />
             </n-form-item>
-            <n-form-item label="图片验证码">
+            <n-form-item v-if="emailVerifyEnabled" label="图片验证码">
               <CaptchaInput v-model:captchaId="forgotCaptchaId" v-model:captchaCode="forgotCaptchaCode" ref="forgotCaptchaRef" />
             </n-form-item>
-            <n-form-item label="邮箱验证码">
+            <n-form-item v-if="emailVerifyEnabled" label="邮箱验证码">
               <n-space>
                 <n-input v-model:value="forgotCode" placeholder="6 位验证码" style="width: 160px;" />
                 <n-button :disabled="!canSendCode" @click="handleSendCode(forgotEmail)">

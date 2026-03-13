@@ -465,3 +465,34 @@ export interface ServerMonitorDto {
   workingSet: number
   gcMemory: number
 }
+
+// ========== 系统设置 ==========
+
+/**
+ * @description 系统设置响应。
+ */
+export interface SystemSettingsDto {
+  allowRegister: boolean
+  forceOpsToken: boolean
+  emailVerifyEnabled: boolean
+  githubOAuthEnabled: boolean
+}
+
+/**
+ * @description 更新系统设置请求。
+ */
+export interface SystemSettingsUpdateDto {
+  allowRegister: boolean
+  forceOpsToken: boolean
+  emailVerifyEnabled: boolean
+  githubOAuthEnabled: boolean
+}
+
+/**
+ * @description 公共系统设置响应。
+ */
+export interface SystemPublicSettingsDto {
+  allowRegister: boolean
+  emailVerifyEnabled: boolean
+  githubOAuthEnabled: boolean
+}
