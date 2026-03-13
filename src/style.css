@@ -3,24 +3,28 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light;
-  color: #1f2937;
-  background-color: #f6f7fb;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
+  color-scheme: light;
+
   --color-primary: #10b981; /* Tailored green */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #3b82f6;
   --color-bg-light: #f9fafb;
   --color-bg-dots: #fbfbfb;
   --color-border: #e5e7eb;
   --color-text-main: #111827;
   --color-text-muted: #6b7280;
+  --color-text-inverse: #ffffff;
   --color-surface: #ffffff;
+  --color-bg: var(--color-bg-light);
   --focus-ring: rgba(16, 185, 129, 0.4);
-  
+
   --color-cell-empty: #ebedf0;
   --color-cell-future: #f3f4f6;
   --color-cell-level-1: #c6e48b;
@@ -28,65 +32,15 @@
   --color-cell-level-3: #239a3b;
   --color-cell-level-4: #196127;
 
+  --color-log-bg: #0f172a;
+  --color-log-text: #e2e8f0;
+  --color-log-info: #93c5fd;
+  --color-log-warn: #fbbf24;
+  --color-log-error: #f87171;
+  --color-log-muted: #a3a3a3;
 }
 
-:root[data-theme="dark"] {
-  --color-primary: #10b981;
-  --color-bg-light: #111827;
-  --color-bg-dots: #1f2937;
-  --color-border: #374151;
-  --color-text-main: #f9fafb;
-  --color-text-muted: #9ca3af;
-  --color-surface: #1f2937;
-  --focus-ring: rgba(16, 185, 129, 0.4);
-  
-  --color-cell-empty: #374151;
-  --color-cell-future: #111827;
-  --color-cell-level-1: #0e4429;
-  --color-cell-level-2: #006d32;
-  --color-cell-level-3: #26a641;
-  --color-cell-level-4: #39d353;
-
-  color-scheme: dark;
-}
-
-:root[data-theme="purple"] {
-  --color-primary: #8b5cf6;
-  --color-bg-light: #f5f3ff;
-  --color-bg-dots: #ede9fe;
-  --color-border: #ddd6fe;
-  --color-text-main: #4c1d95;
-  --color-text-muted: #7c3aed;
-  --color-surface: #ffffff;
-  --focus-ring: rgba(139, 92, 246, 0.4);
-
-  --color-cell-empty: #ede9fe;
-  --color-cell-future: #f5f3ff;
-  --color-cell-level-1: #c6e48b;
-  --color-cell-level-2: #7bc96f;
-  --color-cell-level-3: #239a3b;
-  --color-cell-level-4: #196127;
-
-}
-
-:root[data-theme="pink"] {
-  --color-primary: #ec4899;
-  --color-bg-light: #fdf2f8;
-  --color-bg-dots: #fce7f3;
-  --color-border: #fbcfe8;
-  --color-text-main: #831843;
-  --color-text-muted: #db2777;
-  --color-surface: #ffffff;
-  --focus-ring: rgba(236, 72, 153, 0.4);
-
-  --color-cell-empty: #fce7f3;
-  --color-cell-future: #fdf2f8;
-  --color-cell-level-1: #c6e48b;
-  --color-cell-level-2: #7bc96f;
-  --color-cell-level-3: #239a3b;
-  --color-cell-level-4: #196127;
-
-}
+/* Theme variables are now applied dynamically via JS (see useTheme). */
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -100,7 +54,8 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100%;
-  background-color: #ffffff;
+  color: var(--color-text-main);
+  background-color: var(--color-bg);
 }
 
 button {
@@ -143,6 +98,6 @@ button:focus-visible {
 
 .dot-bg {
   background-color: var(--color-bg-dots);
-  background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+  background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
   background-size: 24px 24px;
 }

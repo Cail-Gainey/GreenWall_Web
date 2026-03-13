@@ -4,7 +4,7 @@
  */
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NLayout, NLayoutSider, NLayoutHeader, NLayoutContent, NMenu, NButton, NSpace, NAvatar } from 'naive-ui'
+import { NLayout, NLayoutSider, NLayoutHeader, NLayoutContent, NMenu, NButton, NSpace, NAvatar, NDropdown } from 'naive-ui'
 import { logout } from '../api/auth'
 import { useGitHubStore } from '../stores/github'
 import { usePermissionStore } from '../stores/permission'
@@ -16,6 +16,7 @@ import { useMenuTreeStore } from '../stores/menuTree'
 import { useRoleListStore } from '../stores/roleList'
 import { useUserListStore } from '../stores/userList'
 import { usePushRecordStore } from '../stores/pushRecord'
+import { useTheme, type Theme } from '../composables/useTheme'
 
 const router = useRouter()
 const route = useRoute()
@@ -27,6 +28,23 @@ const menuTreeStore = useMenuTreeStore()
 const roleListStore = useRoleListStore()
 const userListStore = useUserListStore()
 const pushRecordStore = usePushRecordStore()
+const { currentTheme, setTheme } = useTheme()
+
+const themeOptions = [
+  { label: '浅色', key: 'light' },
+  { label: '暗色', key: 'dark' },
+  { label: '紫色', key: 'purple' },
+  { label: '粉色', key: 'pink' },
+  { label: '海蓝', key: 'ocean' },
+  { label: '琥珀', key: 'amber' },
+  { label: '石板', key: 'slate' },
+  { label: '莫奈', key: 'monet' },
+  { label: '系统', key: 'auto' },
+]
+
+function handleThemeSelect(key: string | number) {
+  setTheme(key as Theme)
+}
 
 onMounted(async () => {
   if (!isLoaded.value) {
@@ -108,6 +126,11 @@ const avatarSrc = computed(() => {
       <n-layout-header bordered class="admin-header">
         <div class="header-title">管理后台</div>
         <n-space align="center">
+          <n-dropdown :options="themeOptions" @select="handleThemeSelect">
+            <n-button quaternary size="small">
+              主题：{{ currentTheme }}
+            </n-button>
+          </n-dropdown>
           <n-space v-if="user" align="center" size="small">
             <n-avatar size="small" :src="avatarSrc" :fallback-src="userAvatarFallback" :img-props="{ referrerpolicy: 'no-referrer' }" />
             <span class="header-user">{{ user.nickName || user.account }}</span>
@@ -139,7 +162,7 @@ const avatarSrc = computed(() => {
   height: 36px;
   border-radius: 10px;
   background: var(--color-primary);
-  color: white;
+  color: var(--color-text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;

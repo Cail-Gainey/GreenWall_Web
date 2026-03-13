@@ -29,7 +29,7 @@ import ContributionGraph from './ContributionGraph.vue';
 }
 
 .workspace-card {
-  background-color: white;
+  background-color: var(--color-surface);
   border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
   border: 1px solid var(--color-border);

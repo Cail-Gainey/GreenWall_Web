@@ -177,7 +177,7 @@ const levelActive = computed(() => props.activeLevel)
 }
 
 .toolbar {
-  background-color: white;
+  background-color: var(--color-surface);
   border-radius: 16px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
   border: 1px solid var(--color-border);
@@ -211,7 +211,7 @@ const levelActive = computed(() => props.activeLevel)
 }
 
 .tool-btn.active {
-  background-color: white;
+  background-color: var(--color-surface);
   color: var(--color-text-main);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   font-weight: 500;
@@ -251,7 +251,7 @@ const levelActive = computed(() => props.activeLevel)
   height: 32px;
   border-radius: 8px;
   border: 1px solid var(--color-border);
-  background: white;
+  background: var(--color-surface);
   display: flex;
   align-items: center;
   justify-content: center;

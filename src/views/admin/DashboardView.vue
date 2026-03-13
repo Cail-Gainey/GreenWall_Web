@@ -3,25 +3,33 @@
  * @file 管理端仪表盘视图。
  */
 import { computed, onMounted, ref, h } from 'vue'
-import { NCard, NGrid, NGridItem, NStatistic, NSpace, NButton, NDataTable, NTag, NDivider } from 'naive-ui'
+import { NCard, NGrid, NGridItem, NStatistic, NSpace, NButton, NDataTable, NTag, NDivider, useMessage } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { getDashboardSummary } from '../../api/dashboard'
 import type { DashboardSummaryDto, DashboardTrendDto, LoginLogDto, OperLogDto } from '../../api/types'
 
 const loading = ref(false)
 const summary = ref<DashboardSummaryDto | null>(null)
+const message = useMessage()
 
 const load = async () => {
   loading.value = true
   try {
     const res = await getDashboardSummary()
     summary.value = res.data.data
+  } catch (e: any) {
+    summary.value = null
+    message.error(e?.message || '加载仪表盘失败')
   } finally {
     loading.value = false
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  void load().catch(() => {
+    // errors are already handled in load
+  })
+})
 
 const trendColumns = ref<DataTableColumns<DashboardTrendDto>>([
   { title: '日期', key: 'date' },

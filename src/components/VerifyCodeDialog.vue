@@ -249,7 +249,7 @@ function handleBack() {
 .primary-btn {
   padding: 10px 20px;
   background: var(--color-primary, #10b981);
-  color: #fff;
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 8px;
   font-size: 14px;
@@ -316,6 +316,6 @@ function handleBack() {
   text-align: center;
 }
 .message.error {
-  color: #ef4444;
+  color: var(--color-danger);
 }
 </style>

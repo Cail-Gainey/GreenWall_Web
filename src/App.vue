@@ -13,6 +13,7 @@ import {
   dateZhCN
 } from 'naive-ui'
 import { useTheme } from './composables/useTheme'
+import { getPalette, type ResolvedTheme } from './theme/palette'
 
 /**
  * @description 当前激活贡献等级（0-4）。
@@ -51,101 +52,23 @@ const effectiveTheme = computed(() => {
 })
 
 const themeOverrides = computed(() => {
-  const palettes = {
-    light: {
-      primary: '#10b981',
-      primaryHover: '#0ea271',
-      primaryPressed: '#0c8a5f',
-      primarySuppl: '#34d399',
-      info: '#3b82f6',
-      infoHover: '#2563eb',
-      infoPressed: '#1d4ed8',
-      infoSuppl: '#60a5fa',
-      success: '#22c55e',
-      successHover: '#16a34a',
-      successPressed: '#15803d',
-      successSuppl: '#4ade80',
-      warning: '#f59e0b',
-      warningHover: '#d97706',
-      warningPressed: '#b45309',
-      warningSuppl: '#fbbf24',
-      error: '#ef4444',
-      errorHover: '#dc2626',
-      errorPressed: '#b91c1c',
-      errorSuppl: '#f87171'
-    },
-    dark: {
-      primary: '#34d399',
-      primaryHover: '#22c55e',
-      primaryPressed: '#16a34a',
-      primarySuppl: '#6ee7b7',
-      info: '#60a5fa',
-      infoHover: '#3b82f6',
-      infoPressed: '#2563eb',
-      infoSuppl: '#93c5fd',
-      success: '#4ade80',
-      successHover: '#22c55e',
-      successPressed: '#16a34a',
-      successSuppl: '#86efac',
-      warning: '#fbbf24',
-      warningHover: '#f59e0b',
-      warningPressed: '#d97706',
-      warningSuppl: '#fcd34d',
-      error: '#f87171',
-      errorHover: '#ef4444',
-      errorPressed: '#dc2626',
-      errorSuppl: '#fca5a5'
-    },
-    purple: {
-      primary: '#8b5cf6',
-      primaryHover: '#7c3aed',
-      primaryPressed: '#6d28d9',
-      primarySuppl: '#a78bfa',
-      info: '#6366f1',
-      infoHover: '#4f46e5',
-      infoPressed: '#4338ca',
-      infoSuppl: '#818cf8',
-      success: '#22c55e',
-      successHover: '#16a34a',
-      successPressed: '#15803d',
-      successSuppl: '#4ade80',
-      warning: '#f59e0b',
-      warningHover: '#d97706',
-      warningPressed: '#b45309',
-      warningSuppl: '#fbbf24',
-      error: '#ef4444',
-      errorHover: '#dc2626',
-      errorPressed: '#b91c1c',
-      errorSuppl: '#f87171'
-    },
-    pink: {
-      primary: '#ec4899',
-      primaryHover: '#db2777',
-      primaryPressed: '#be185d',
-      primarySuppl: '#f472b6',
-      info: '#0ea5e9',
-      infoHover: '#0284c7',
-      infoPressed: '#0369a1',
-      infoSuppl: '#38bdf8',
-      success: '#22c55e',
-      successHover: '#16a34a',
-      successPressed: '#15803d',
-      successSuppl: '#4ade80',
-      warning: '#f59e0b',
-      warningHover: '#d97706',
-      warningPressed: '#b45309',
-      warningSuppl: '#fbbf24',
-      error: '#ef4444',
-      errorHover: '#dc2626',
-      errorPressed: '#b91c1c',
-      errorSuppl: '#f87171'
-    }
-  }
-
-  const palette = palettes[effectiveTheme.value]
+  const palette = getPalette(effectiveTheme.value as ResolvedTheme) ?? getPalette('light')
   return {
     common: {
       fontFamily: 'Lato, Segoe UI, Tahoma, sans-serif',
+      bodyColor: palette.bg,
+      cardColor: palette.surface,
+      popoverColor: palette.surface,
+      modalColor: palette.surface,
+      borderColor: palette.border,
+      dividerColor: palette.border,
+      textColorBase: palette.textMain,
+      textColor1: palette.textMain,
+      textColor2: palette.textMuted,
+      textColor3: palette.textMuted,
+      placeholderColor: palette.textMuted,
+      iconColor: palette.textMuted,
+      iconColorDisabled: palette.textMuted,
       primaryColor: palette.primary,
       primaryColorHover: palette.primaryHover,
       primaryColorPressed: palette.primaryPressed,
@@ -166,7 +89,7 @@ const themeOverrides = computed(() => {
       errorColorHover: palette.errorHover,
       errorColorPressed: palette.errorPressed,
       errorColorSuppl: palette.errorSuppl
-    }
+    },
   }
 })
 

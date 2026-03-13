@@ -70,10 +70,6 @@ const { hasPermission, loadPermission } = permissionStore
 const userListStore = useUserListStore()
 const roleListStore = useRoleListStore()
 
-const totalPages = computed(() =>
-  Math.max(1, Math.ceil(total.value / pageSize.value)),
-)
-
 const roleCodeToId = computed(() => {
   return new Map(roles.value.map((r) => [r.roleCode, r.id]))
 })
@@ -457,7 +453,6 @@ onMounted(async () => {
           v-model:page="pageIndex"
           v-model:page-size="pageSize"
           :item-count="total"
-          :page-count="totalPages"
           @update:page="fetchUsers"
           @update:page-size="fetchUsers"
         />

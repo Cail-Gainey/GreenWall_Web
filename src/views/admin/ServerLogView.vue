@@ -392,8 +392,8 @@ watch(mode, async (val) => {
   height: 520px;
   border: 1px solid var(--n-border-color, #e5e7eb);
   border-radius: 8px;
-  background: #0f172a;
-  color: #e2e8f0;
+  background: var(--color-log-bg);
+  color: var(--color-log-text);
   padding: 12px;
   overflow: auto;
 }
@@ -411,25 +411,25 @@ watch(mode, async (val) => {
 }
 
 .level-info {
-  color: #93c5fd;
+  color: var(--color-log-info);
 }
 
 .level-warn {
-  color: #fbbf24;
+  color: var(--color-log-warn);
 }
 
 .level-error,
 .level-fatal {
-  color: #f87171;
+  color: var(--color-log-error);
 }
 
 .level-debug,
 .level-trace {
-  color: #a3a3a3;
+  color: var(--color-log-muted);
 }
 
 .level-unknown {
-  color: #e2e8f0;
+  color: var(--color-log-text);
 }
 
 .auto-scroll-label {

@@ -154,7 +154,7 @@ watch(cols, () => recalcScale())
 .month-label {
   position: absolute;
   font-size: 0.8rem;
-  color: #9ca3af;
+  color: var(--color-text-muted);
   white-space: nowrap;
 }
 
@@ -172,7 +172,7 @@ watch(cols, () => recalcScale())
 
 .day-label {
   font-size: 0.8rem;
-  color: #9ca3af;
+  color: var(--color-text-muted);
   height: 14px;
   display: flex;
   align-items: center;
@@ -222,8 +222,8 @@ watch(cols, () => recalcScale())
 }
 
 .future-cell {
-  background-color: var(--color-text-main) !important;
-  opacity: 0.2;
+  background-color: var(--color-cell-future);
+  opacity: 0.8;
   cursor: not-allowed;
 }
 

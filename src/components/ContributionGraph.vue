@@ -1299,7 +1299,7 @@ const paint = (c: number, r: number) => {
 .community-upload {
   border: none;
   background: var(--color-primary);
-  color: white;
+  color: var(--color-text-inverse);
   padding: 4px 12px;
   border-radius: 999px;
   font-size: 0.8rem;
@@ -1324,7 +1324,7 @@ const paint = (c: number, r: number) => {
 
 
 .push-error {
-  color: #ef4444;
+  color: var(--color-danger);
   font-size: 0.85rem;
 }
 
@@ -1404,7 +1404,7 @@ const paint = (c: number, r: number) => {
 .month-label {
   position: absolute;
   font-size: 0.8rem;
-  color: #9ca3af;
+  color: var(--color-text-muted);
   white-space: nowrap;
 }
 
@@ -1421,7 +1421,7 @@ const paint = (c: number, r: number) => {
 
 .day-label {
   font-size: 0.8rem;
-  color: #9ca3af;
+  color: var(--color-text-muted);
   height: 14px;
   display: flex;
   align-items: center;

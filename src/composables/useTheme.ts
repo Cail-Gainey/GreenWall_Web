@@ -2,14 +2,27 @@
  * @file 主题状态管理组合式函数，统一处理主题持久化与系统联动。
  */
 import { ref, onMounted, onUnmounted } from 'vue'
+import { applyPaletteToRoot, getPalette, type ResolvedTheme } from '../theme/palette'
 
 /**
  * @description 支持的主题类型。
  */
-export type Theme = 'light' | 'dark' | 'purple' | 'pink' | 'auto'
+export type Theme = 'light' | 'dark' | 'purple' | 'pink' | 'ocean' | 'amber' | 'slate' | 'monet' | 'auto'
+
+const allowedThemes: Theme[] = [
+  'light',
+  'dark',
+  'purple',
+  'pink',
+  'ocean',
+  'amber',
+  'slate',
+  'monet',
+  'auto',
+]
 
 const currentTheme = ref<Theme>('auto')
-const resolvedTheme = ref<'light' | 'dark' | 'purple' | 'pink'>('light')
+const resolvedTheme = ref<ResolvedTheme>('light')
 const THEME_STORAGE_KEY = 'greenwall-theme'
 
 /**
@@ -33,6 +46,7 @@ export function useTheme() {
     
     resolvedTheme.value = (isSystemDark || isNight) ? 'dark' : 'light'
     document.documentElement.setAttribute('data-theme', resolvedTheme.value)
+    applyPaletteToRoot(getPalette(resolvedTheme.value), resolvedTheme.value)
   }
 
   /**
@@ -45,6 +59,7 @@ export function useTheme() {
     } else {
       resolvedTheme.value = theme
       document.documentElement.setAttribute('data-theme', theme)
+      applyPaletteToRoot(getPalette(theme), theme)
     }
   }
 
@@ -71,8 +86,8 @@ export function useTheme() {
    * @description 组件挂载时恢复主题并监听系统变化。
    */
   onMounted(() => {
-    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) as Theme
-    if (savedTheme) {
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null
+    if (savedTheme && allowedThemes.includes(savedTheme)) {
       currentTheme.value = savedTheme
     } else {
       currentTheme.value = 'auto'

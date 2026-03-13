@@ -31,6 +31,10 @@ const themeOptions = [
   { label: '暗色', key: 'dark' },
   { label: '紫色', key: 'purple' },
   { label: '粉色', key: 'pink' },
+  { label: '海蓝', key: 'ocean' },
+  { label: '琥珀', key: 'amber' },
+  { label: '石板', key: 'slate' },
+  { label: '莫奈', key: 'monet' },
   { label: '系统', key: 'auto' },
 ]
 
@@ -129,7 +133,7 @@ function goCommunity() {
   height: 32px;
   border-radius: 10px;
   background: var(--color-primary);
-  color: white;
+  color: var(--color-text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;

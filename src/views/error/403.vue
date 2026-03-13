@@ -42,7 +42,7 @@ const router = useRouter()
 .forbidden-content button {
   padding: 10px 24px;
   background: var(--color-primary);
-  color: white;
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 8px;
   font-size: 1rem;
