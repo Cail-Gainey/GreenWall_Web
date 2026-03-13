@@ -72,7 +72,6 @@ async function handleLogout() {
     // ignore logout errors, still clear local state
   }
   reset()
-  localStorage.removeItem('token')
   localStorage.removeItem('user')
   githubStore.clear()
   menuTreeStore.reset()

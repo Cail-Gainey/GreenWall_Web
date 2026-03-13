@@ -76,7 +76,12 @@ const canGithubStatus = computed(() => hasPermission('app:github:push:status'));
 const canGithubRecent = computed(() => hasPermission('app:github:push:recent'));
 const canGithubQuery = computed(() => canGithubStatus.value || canGithubRecent.value);
 const canCommunityPublish = computed(() => hasPermission('app:community:publish'));
-const isLoggedIn = computed(() => !!user.value || !!localStorage.getItem('token'));
+const isLoggedIn = computed(() => !!permissionStore.token);
+const showGithubConnect = computed(() => !isLoggedIn.value || canGithubConnect.value);
+const showGithubPush = computed(() => !isLoggedIn.value || canGithubPush.value);
+const showGithubQuery = computed(() => !isLoggedIn.value || canGithubQuery.value);
+const showCommunityPublish = computed(() => !isLoggedIn.value || canCommunityPublish.value);
+const loginHint = computed(() => (isLoggedIn.value ? '' : '请先登录'));
 const toolPermissionMap: Record<string, string> = {
   brush: 'app:graph:brush',
   eraser: 'app:graph:eraser',
@@ -956,33 +961,46 @@ const paint = (c: number, r: number) => {
               断开授权
             </n-tooltip>
           </div>
-          <button v-else-if="canGithubConnect" class="github-connect" @click="connectGithub">连接 GitHub</button>
-          <n-tooltip v-if="canGithubPush" trigger="hover">
+          <n-tooltip v-else-if="showGithubConnect" trigger="hover">
             <template #trigger>
-              <button class="github-push" @click="openPushDialog">
-                <n-icon size="14">
-                  <CloudUpload />
-                </n-icon>
-                推送
-              </button>
+              <span class="tooltip-wrapper">
+                <button class="github-connect" :disabled="!isLoggedIn" @click="connectGithub">连接 GitHub</button>
+              </span>
             </template>
-            推送贡献图
+            {{ loginHint || '连接 GitHub' }}
           </n-tooltip>
-          <n-tooltip v-if="canGithubQuery" trigger="hover">
+          <n-tooltip v-if="showGithubPush" trigger="hover">
             <template #trigger>
-              <button class="github-query" @click="openQueryDialog">
-                查询
-              </button>
+              <span class="tooltip-wrapper">
+                <button class="github-push" :disabled="!isLoggedIn" @click="openPushDialog">
+                  <n-icon size="14">
+                    <CloudUpload />
+                  </n-icon>
+                  推送
+                </button>
+              </span>
             </template>
-            查询推送任务
+            {{ loginHint || '推送贡献图' }}
           </n-tooltip>
-          <n-tooltip v-if="canCommunityPublish" trigger="hover">
+          <n-tooltip v-if="showGithubQuery" trigger="hover">
             <template #trigger>
-              <button class="community-upload" @click="openCommunityDialog">
-                社区
-              </button>
+              <span class="tooltip-wrapper">
+                <button class="github-query" :disabled="!isLoggedIn" @click="openQueryDialog">
+                  查询
+                </button>
+              </span>
             </template>
-            上传图案到社区
+            {{ loginHint || '查询推送任务' }}
+          </n-tooltip>
+          <n-tooltip v-if="showCommunityPublish" trigger="hover">
+            <template #trigger>
+              <span class="tooltip-wrapper">
+                <button class="community-upload" :disabled="!isLoggedIn" @click="openCommunityDialog">
+                  社区
+                </button>
+              </span>
+            </template>
+            {{ loginHint || '上传图案到社区' }}
           </n-tooltip>
         </div>
       </div>
@@ -1239,6 +1257,14 @@ const paint = (c: number, r: number) => {
   font-weight: 600;
 }
 
+.github-connect:disabled,
+.github-push:disabled,
+.github-query:disabled,
+.community-upload:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .github-push {
   border: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -1282,6 +1308,10 @@ const paint = (c: number, r: number) => {
 
 .community-upload:hover {
   filter: brightness(0.95);
+}
+
+.tooltip-wrapper {
+  display: inline-flex;
 }
 
 .community-actions {

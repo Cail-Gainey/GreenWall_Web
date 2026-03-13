@@ -2,6 +2,7 @@
  * @file Axios 实例封装：统一 baseURL、超时与拦截器。
  */
 import axios from 'axios'
+import { usePermissionStore } from '../stores/permission'
 import type { ApiResult } from './types'
 
 /**
@@ -41,7 +42,8 @@ request.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
+      const permissionStore = usePermissionStore()
+      permissionStore.reset()
       localStorage.removeItem('user')
     }
     const msg = error.response?.data?.msg || error.message || '网络错误'

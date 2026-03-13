@@ -41,9 +41,13 @@ onMounted(async () => {
       }
     } catch {
       currentUser.value = null
-      localStorage.removeItem('token')
       permissionStore.reset()
     }
+  } else {
+    currentUser.value = null
+    permissionStore.reset()
+    githubStore.clear()
+    pushRecordStore.reset()
   }
 })
 
@@ -91,7 +95,6 @@ async function onLogout() {
     // ignore logout errors, still clear local state
   }
   currentUser.value = null
-  localStorage.removeItem('token')
   githubStore.clear()
   permissionStore.reset()
   menuTreeStore.reset()

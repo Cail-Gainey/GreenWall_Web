@@ -9,6 +9,7 @@ import { sendCode } from '../api/verifyCode'
 import { getPublicSystemConfig } from '../api/systemConfig'
 import type { UserProfileDto } from '../api/types'
 import CaptchaInput from './CaptchaInput.vue'
+import { usePermissionStore } from '../stores/permission'
 
 const emit = defineEmits<{
   close: []
@@ -25,6 +26,7 @@ const countdown = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
 const allowRegister = ref(true)
 const emailVerifyEnabled = ref(true)
+const permissionStore = usePermissionStore()
 
 const loginAccount = ref('')
 const loginPassword = ref('')
@@ -119,7 +121,7 @@ async function handleLogin() {
       captchaId: loginCaptchaId.value,
       captchaCode: loginCaptchaCode.value
     })
-    localStorage.setItem('token', res.data.data.token)
+    permissionStore.setToken(res.data.data.token)
     const meRes = await getMe()
     const user = meRes.data.data
     localStorage.setItem('user', JSON.stringify(user))
@@ -155,7 +157,7 @@ async function handleRegister() {
       email: regEmail.value,
       code: regCode.value
     })
-    localStorage.setItem('token', res.data.data.token)
+    permissionStore.setToken(res.data.data.token)
     const meRes = await getMe()
     const user = meRes.data.data
     localStorage.setItem('user', JSON.stringify(user))

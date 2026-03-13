@@ -147,7 +147,7 @@ router.beforeEach(async (to) => {
   if (!isLoaded.value) {
     const user = await loadPermission()
     if (!user) {
-      localStorage.removeItem('token')
+      permissionStore.reset()
       localStorage.removeItem('user')
       return { path: '/' }
     }

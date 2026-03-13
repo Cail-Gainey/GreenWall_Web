@@ -12,6 +12,7 @@ import {
   NPagination,
   NSelect,
   NTag,
+  NTooltip,
   NModal,
   NSpace,
   NEmpty,
@@ -68,7 +69,7 @@ const editGrid = ref<number[][]>([])
 const editSubmitting = ref(false)
 const editYear = ref(new Date().getFullYear())
 
-const isLoggedIn = computed(() => !!permissionStore.user || !!localStorage.getItem('token'))
+const isLoggedIn = computed(() => !!permissionStore.token)
 const canManageDetail = computed(() => {
   if (!detail.value) return false
   const currentId = permissionStore.user?.id
@@ -80,6 +81,11 @@ const canFavorite = computed(() => permissionStore.hasPermission('app:community:
 const canImport = computed(() => permissionStore.hasPermission('app:community:import'))
 const canEdit = computed(() => permissionStore.hasPermission('app:community:edit'))
 const canDelete = computed(() => permissionStore.hasPermission('app:community:delete'))
+const showPublish = computed(() => !isLoggedIn.value || canPublish.value)
+const showLike = computed(() => !isLoggedIn.value || canLike.value)
+const showFavorite = computed(() => !isLoggedIn.value || canFavorite.value)
+const showImport = computed(() => !isLoggedIn.value || canImport.value)
+const loginHint = computed(() => (isLoggedIn.value ? '' : '请先登录'))
 
 const sortOptions = [
   { label: '浏览量', value: 'view' },
@@ -446,7 +452,14 @@ onMounted(loadPatterns)
         <div class="subtitle">按浏览量、收藏、点赞排序展示热门图案</div>
       </div>
       <n-space align="center">
-        <n-button v-if="canPublish" type="primary" size="small" @click="goPublish">发布图案</n-button>
+        <n-tooltip v-if="showPublish" trigger="hover">
+          <template #trigger>
+            <span class="tooltip-wrapper">
+              <n-button type="primary" size="small" :disabled="!isLoggedIn" @click="goPublish">发布图案</n-button>
+            </span>
+          </template>
+          {{ loginHint || '发布图案' }}
+        </n-tooltip>
         <span class="sort-label">年份：</span>
         <n-select v-model:value="yearFilter" :options="yearOptions" size="small" style="width: 140px" />
         <span class="sort-label">排序：</span>
@@ -483,25 +496,46 @@ onMounted(loadPatterns)
               <span>收藏 {{ item.favoriteCount }}</span>
             </div>
             <div class="card-actions" @click.stop>
-              <n-button
-                v-if="canLike"
-                size="small"
-                secondary
-                :type="item.isLiked ? 'success' : 'default'"
-                @click="toggleLike(item)"
-              >
-                {{ item.isLiked ? '已点赞' : '点赞' }}
-              </n-button>
-              <n-button
-                v-if="canFavorite"
-                size="small"
-                secondary
-                :type="item.isFavorited ? 'warning' : 'default'"
-                @click="toggleFavorite(item)"
-              >
-                {{ item.isFavorited ? '已收藏' : '收藏' }}
-              </n-button>
-              <n-button v-if="canImport" size="small" type="primary" @click="confirmImport(item)">一键导入</n-button>
+              <n-tooltip v-if="showLike" trigger="hover">
+                <template #trigger>
+                  <span class="tooltip-wrapper">
+                    <n-button
+                      size="small"
+                      secondary
+                      :disabled="!isLoggedIn"
+                      :type="item.isLiked ? 'success' : 'default'"
+                      @click="toggleLike(item)"
+                    >
+                      {{ item.isLiked ? '已点赞' : '点赞' }}
+                    </n-button>
+                  </span>
+                </template>
+                {{ loginHint || '点赞' }}
+              </n-tooltip>
+              <n-tooltip v-if="showFavorite" trigger="hover">
+                <template #trigger>
+                  <span class="tooltip-wrapper">
+                    <n-button
+                      size="small"
+                      secondary
+                      :disabled="!isLoggedIn"
+                      :type="item.isFavorited ? 'warning' : 'default'"
+                      @click="toggleFavorite(item)"
+                    >
+                      {{ item.isFavorited ? '已收藏' : '收藏' }}
+                    </n-button>
+                  </span>
+                </template>
+                {{ loginHint || '收藏' }}
+              </n-tooltip>
+              <n-tooltip v-if="showImport" trigger="hover">
+                <template #trigger>
+                  <span class="tooltip-wrapper">
+                    <n-button size="small" type="primary" :disabled="!isLoggedIn" @click="confirmImport(item)">一键导入</n-button>
+                  </span>
+                </template>
+                {{ loginHint || '一键导入' }}
+              </n-tooltip>
             </div>
           </n-card>
         </n-grid-item>
@@ -545,25 +579,46 @@ onMounted(loadPatterns)
             <span>收藏 {{ detail.favoriteCount }}</span>
           </div>
           <div class="detail-actions">
-            <n-button
-              v-if="canLike"
-              size="small"
-              secondary
-              :type="detail.isLiked ? 'success' : 'default'"
-              @click="toggleLike(detail)"
-            >
-              {{ detail.isLiked ? '已点赞' : '点赞' }}
-            </n-button>
-            <n-button
-              v-if="canFavorite"
-              size="small"
-              secondary
-              :type="detail.isFavorited ? 'warning' : 'default'"
-              @click="toggleFavorite(detail)"
-            >
-              {{ detail.isFavorited ? '已收藏' : '收藏' }}
-            </n-button>
-            <n-button v-if="canImport" size="small" type="primary" @click="confirmImport(detail)">一键导入</n-button>
+            <n-tooltip v-if="showLike" trigger="hover">
+              <template #trigger>
+                <span class="tooltip-wrapper">
+                  <n-button
+                    size="small"
+                    secondary
+                    :disabled="!isLoggedIn"
+                    :type="detail.isLiked ? 'success' : 'default'"
+                    @click="toggleLike(detail)"
+                  >
+                    {{ detail.isLiked ? '已点赞' : '点赞' }}
+                  </n-button>
+                </span>
+              </template>
+              {{ loginHint || '点赞' }}
+            </n-tooltip>
+            <n-tooltip v-if="showFavorite" trigger="hover">
+              <template #trigger>
+                <span class="tooltip-wrapper">
+                  <n-button
+                    size="small"
+                    secondary
+                    :disabled="!isLoggedIn"
+                    :type="detail.isFavorited ? 'warning' : 'default'"
+                    @click="toggleFavorite(detail)"
+                  >
+                    {{ detail.isFavorited ? '已收藏' : '收藏' }}
+                  </n-button>
+                </span>
+              </template>
+              {{ loginHint || '收藏' }}
+            </n-tooltip>
+            <n-tooltip v-if="showImport" trigger="hover">
+              <template #trigger>
+                <span class="tooltip-wrapper">
+                  <n-button size="small" type="primary" :disabled="!isLoggedIn" @click="confirmImport(detail)">一键导入</n-button>
+                </span>
+              </template>
+              {{ loginHint || '一键导入' }}
+            </n-tooltip>
             <template v-if="canManageDetail">
               <n-button v-if="canEdit" size="small" @click="openEditModal">编辑图案</n-button>
               <n-button v-if="canDelete" size="small" type="error" ghost @click="removePattern">删除</n-button>
@@ -678,6 +733,10 @@ onMounted(loadPatterns)
 .card-actions {
   display: flex;
   gap: 8px;
+}
+
+.tooltip-wrapper {
+  display: inline-flex;
 }
 
 .pagination-bar {

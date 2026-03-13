@@ -7,6 +7,8 @@ import { getUserMenus } from '../api/permission'
 import type { UserProfileDto, MenuTreeDto } from '../api/types'
 
 interface PermissionState {
+  /** 当前登录 token */
+  token: string | null
   /** 当前用户信息 */
   user: UserProfileDto | null
   /** 用户角色编码列表 */
@@ -24,6 +26,7 @@ interface PermissionState {
  */
 export const usePermissionStore = defineStore('permission', {
   state: (): PermissionState => ({
+    token: localStorage.getItem('token'),
     user: null,
     roles: [],
     permissions: [],
@@ -31,6 +34,17 @@ export const usePermissionStore = defineStore('permission', {
     isLoaded: false,
   }),
   actions: {
+    /**
+     * @description 设置登录 token（同步到 localStorage）。
+     */
+    setToken(token: string | null) {
+      this.token = token
+      if (token) {
+        localStorage.setItem('token', token)
+      } else {
+        localStorage.removeItem('token')
+      }
+    },
     /**
      * @description 从后端加载权限数据 (调用 /Auth/me + /Permission/menus)。
      */
@@ -61,6 +75,18 @@ export const usePermissionStore = defineStore('permission', {
      * @description 判断当前用户是否拥有指定权限。
      */
     hasPermission(perm: string): boolean {
+      const publicPermissions = new Set([
+        'app:graph:brush',
+        'app:graph:eraser',
+        'app:graph:auto',
+        'app:graph:random',
+        'app:graph:pattern',
+        'app:graph:clear',
+        'app:graph:fill',
+      ])
+      if (!this.token) {
+        return publicPermissions.has(perm)
+      }
       if (this.roles.includes('admin')) return true
       return this.permissions.includes(perm)
     },
@@ -74,6 +100,7 @@ export const usePermissionStore = defineStore('permission', {
      * @description 清空所有权限状态。
      */
     reset() {
+      this.setToken(null)
       this.user = null
       this.roles = []
       this.permissions = []
