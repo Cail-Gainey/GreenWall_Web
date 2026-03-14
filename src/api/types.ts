@@ -464,6 +464,30 @@ export interface ServerMonitorDto {
   processorCount: number
   workingSet: number
   gcMemory: number
+  /**
+   * @description 服务器展示名称（可选）。
+   */
+  displayName?: string
+  /**
+   * @description 服务器 IP（可选）。
+   */
+  ipAddress?: string
+  /**
+   * @description CPU 使用率百分比（可选）。
+   */
+  cpuUsage?: number
+  /**
+   * @description 内存使用率百分比（可选）。
+   */
+  ramUsage?: number
+  /**
+   * @description Swap 使用率百分比（可选）。
+   */
+  swapUsage?: number
+  /**
+   * @description 磁盘使用率百分比（可选）。
+   */
+  diskUsage?: number
 }
 
 // ========== 系统设置 ==========
