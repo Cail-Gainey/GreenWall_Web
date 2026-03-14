@@ -4,41 +4,70 @@
  */
 import { computed, h, onMounted, ref } from 'vue'
 import {
-  NAlert,
   NButton,
   NCard,
   NDataTable,
+  NDatePicker,
+  NDropdown,
   NForm,
   NFormItem,
   NInput,
   NInputNumber,
+  NIcon,
   NModal,
+  NTree,
+  NPagination,
+  NPopover,
   NSelect,
   NSpace,
   NTag,
+  NTooltip,
   NCheckbox,
   NCheckboxGroup,
+  useDialog,
+  useMessage,
   type DataTableColumns,
+  type TreeOption,
 } from 'naive-ui'
-import { createRole, deleteRole, getRoleById, updateRole } from '../../api/role'
-import { useRoleListStore } from '../../stores/roleList'
+import { Column, List, Renew, ChevronUp, Filter, Pen, TrashCan, UserRole } from '@vicons/carbon'
+import { createRole, deleteRole, getRoleById, getRolePage, updateRole, updateRoleSort } from '../../api/role'
 import { useMenuTreeStore } from '../../stores/menuTree'
 import { usePermissionStore } from '../../stores/permission'
-import type { MenuTreeDto, RoleCreateDto, RoleDto, RoleUpdateDto } from '../../api/types'
+import type { MenuTreeDto, RoleCreateDto, RoleDto, RoleQueryDto, RoleSortUpdateDto, RoleUpdateDto } from '../../api/types'
 
 const roles = ref<RoleDto[]>([])
 const menus = ref<MenuTreeDto[]>([])
+const total = ref(0)
+const pageIndex = ref(1)
+const pageSize = ref(10)
 const loading = ref(false)
-const message = ref('')
-const isError = ref(false)
+const messageApi = useMessage()
 
 const showForm = ref(false)
 const formMode = ref<'create' | 'edit'>('create')
+const showSearch = ref(false)
+const showPermDialog = ref(false)
+const permLoading = ref(false)
+const permRole = ref<RoleDto | null>(null)
+const permMenuIds = ref<string[]>([])
+const permExpandedKeys = ref<string[]>([])
+const draggingIndex = ref<number | null>(null)
+const dragOverIndex = ref<number | null>(null)
+const tableDensity = ref<'compact' | 'default' | 'comfortable'>('default')
+const visibleColumns = ref<Array<'roleName' | 'roleCode' | 'status' | 'sort' | 'remark' | 'actions'>>([
+  'roleName',
+  'roleCode',
+  'status',
+  'sort',
+  'remark',
+  'createTime',
+  'actions',
+])
 
 const permissionStore = usePermissionStore()
 const { hasPermission, loadPermission } = permissionStore
-const roleListStore = useRoleListStore()
 const menuTreeStore = useMenuTreeStore()
+const dialog = useDialog()
 
 const form = ref({
   id: '',
@@ -50,28 +79,61 @@ const form = ref({
   menuIds: [] as string[],
 })
 
-const menuFlat = computed(() => {
-  const rows: Array<{ menu: MenuTreeDto; level: number }> = []
-  const walk = (nodes: MenuTreeDto[], level: number) => {
-    nodes.forEach((node) => {
-      rows.push({ menu: node, level })
-      if (node.children && node.children.length > 0) {
-        walk(node.children, level + 1)
-      }
-    })
-  }
-  walk(menus.value, 0)
-  return rows
+const filterForm = ref({
+  roleName: '',
+  roleCode: '',
+  remark: '',
+  status: 'all' as 'all' | '1' | '2',
+  dateRange: null as [number, number] | null,
+})
+
+const appliedFilters = ref({
+  roleName: '',
+  roleCode: '',
+  remark: '',
+  status: 'all' as 'all' | '1' | '2',
+  dateRange: null as [number, number] | null,
+})
+
+const densityOptions = [
+  { label: '紧凑', key: 'compact' },
+  { label: '默认', key: 'default' },
+  { label: '宽松', key: 'comfortable' },
+]
+
+const statusOptions = [
+  { label: '全部状态', value: 'all' },
+  { label: '启用', value: '1' },
+  { label: '禁用', value: '2' },
+]
+
+const columnOptions = [
+  { label: '排序', value: 'sort' },
+  { label: '角色名称', value: 'roleName' },
+  { label: '编码', value: 'roleCode' },
+  { label: '状态', value: 'status' },
+  { label: '备注', value: 'remark' },
+  { label: '创建日期', value: 'createTime' },
+  { label: '操作', value: 'actions' },
+]
+
+const menuTreeOptions = computed<TreeOption[]>(() => {
+  const build = (node: MenuTreeDto): TreeOption => ({
+    key: node.id,
+    label: node.menuName,
+    children: node.children && node.children.length > 0 ? node.children.map(build) : undefined,
+  })
+  return menus.value.map(build)
 })
 
 function showMsg(msg: string, error = false) {
-  message.value = msg
-  isError.value = error
+  if (!msg) return
+  if (error) messageApi.error(msg)
+  else messageApi.success(msg)
 }
 
 function clearMsg() {
-  message.value = ''
-  isError.value = false
+  // no-op for toast messages
 }
 
 function statusLabel(s: number) {
@@ -82,17 +144,260 @@ function statusType(s: number) {
   return s === 1 ? 'success' : 'error'
 }
 
-function typeLabel(t: number) {
-  if (t === 1) return '目录'
-  if (t === 2) return '菜单'
-  return '按钮'
+function handleDensitySelect(key: string | number) {
+  if (key === 'compact' || key === 'default' || key === 'comfortable') {
+    tableDensity.value = key
+  }
+}
+
+function isVisibleColumn(
+  key: 'roleName' | 'roleCode' | 'status' | 'sort' | 'remark' | 'createTime' | 'actions',
+) {
+  return visibleColumns.value.includes(key)
+}
+
+function formatDate(value?: string) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const y = date.getFullYear()
+  const m = date.getMonth() + 1
+  const d = date.getDate()
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  const ss = String(date.getSeconds()).padStart(2, '0')
+  return `${y}/${m}/${d} ${hh}:${mm}:${ss}`
+}
+
+async function applySortUpdate(list: RoleDto[]) {
+  if (!hasPermission('sys:role:edit')) return
+  const sortValues = list.map((r) => r.sort).sort((a, b) => a - b)
+  const updates: RoleSortUpdateDto[] = list.map((role, idx) => ({
+    id: role.id,
+    sort: sortValues[idx],
+  }))
+  roles.value = list.map((role, idx) => ({ ...role, sort: updates[idx].sort }))
+  try {
+    await updateRoleSort(updates)
+    showMsg('排序已更新')
+  } catch (e: any) {
+    showMsg(e.message, true)
+    fetchRoles()
+  }
+}
+
+function handleDragStart(index: number, event: DragEvent) {
+  if (!hasPermission('sys:role:edit')) return
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', String(index))
+  }
+  draggingIndex.value = index
+}
+
+function handleDragOver(index: number, event: DragEvent) {
+  if (draggingIndex.value === null) return
+  event.preventDefault()
+  dragOverIndex.value = index
+}
+
+async function handleDrop(index: number) {
+  if (draggingIndex.value === null) return
+  const from = draggingIndex.value
+  const to = index
+  draggingIndex.value = null
+  dragOverIndex.value = null
+  if (from === to) return
+  const list = roles.value.slice()
+  const [moved] = list.splice(from, 1)
+  list.splice(to, 0, moved)
+  await applySortUpdate(list)
+}
+
+function toggleSearch() {
+  showSearch.value = !showSearch.value
+}
+
+function confirmAction(message: string) {
+  return new Promise<boolean>((resolve) => {
+    dialog.warning({
+      title: '确认操作',
+      content: message,
+      positiveText: '确认',
+      negativeText: '取消',
+      onPositiveClick: () => resolve(true),
+      onNegativeClick: () => resolve(false),
+      onClose: () => resolve(false),
+    })
+  })
+}
+
+function getAllMenuKeys(nodes: MenuTreeDto[]) {
+  const keys: string[] = []
+  const walk = (list: MenuTreeDto[]) => {
+    list.forEach((node) => {
+      keys.push(node.id)
+      if (node.children && node.children.length > 0) {
+        walk(node.children)
+      }
+    })
+  }
+  walk(nodes)
+  return keys
+}
+
+function getLeafMenuKeys(nodes: MenuTreeDto[]) {
+  const keys: string[] = []
+  const walk = (list: MenuTreeDto[]) => {
+    list.forEach((node) => {
+      if (!node.children || node.children.length === 0) {
+        keys.push(node.id)
+      } else {
+        walk(node.children)
+      }
+    })
+  }
+  walk(nodes)
+  return keys
+}
+
+function expandAllMenus() {
+  permExpandedKeys.value = getAllMenuKeys(menus.value)
+}
+
+function collapseAllMenus() {
+  permExpandedKeys.value = []
+}
+
+function selectAllMenus() {
+  permMenuIds.value = getLeafMenuKeys(menus.value)
+}
+
+function clearMenuSelection() {
+  permMenuIds.value = []
+}
+
+function invertMenuSelection() {
+  const leafKeys = new Set(getLeafMenuKeys(menus.value))
+  const current = new Set(permMenuIds.value.filter((key) => leafKeys.has(key)))
+  const next: string[] = []
+  leafKeys.forEach((key) => {
+    if (!current.has(key)) next.push(key)
+  })
+  permMenuIds.value = next
+}
+
+async function openPermission(role: RoleDto) {
+  showPermDialog.value = true
+  permLoading.value = true
+  try {
+    if (menus.value.length === 0) {
+      await fetchMenus()
+    }
+    const res = await getRoleById(role.id)
+    const detail = res.data.data
+    permRole.value = detail
+    permMenuIds.value = detail.menuIds || []
+    expandAllMenus()
+  } catch (e: any) {
+    showMsg(e.message, true)
+  } finally {
+    permLoading.value = false
+  }
+}
+
+async function submitPermissions() {
+  if (!permRole.value) return
+  try {
+    await updateRole({
+      id: permRole.value.id,
+      roleName: permRole.value.roleName,
+      roleCode: permRole.value.roleCode,
+      sort: permRole.value.sort,
+      status: permRole.value.status,
+      remark: permRole.value.remark || undefined,
+      menuIds: permMenuIds.value,
+    })
+    showMsg('权限更新成功')
+    await loadPermission()
+    showPermDialog.value = false
+    refreshRoles()
+  } catch (e: any) {
+    showMsg(e.message, true)
+  }
+}
+
+function applyFilters() {
+  appliedFilters.value = {
+    roleName: filterForm.value.roleName.trim(),
+    roleCode: filterForm.value.roleCode.trim(),
+    remark: filterForm.value.remark.trim(),
+    status: filterForm.value.status,
+    dateRange: filterForm.value.dateRange,
+  }
+  pageIndex.value = 1
+  fetchRoles()
+}
+
+function resetFilters() {
+  filterForm.value = {
+    roleName: '',
+    roleCode: '',
+    remark: '',
+    status: 'all',
+    dateRange: null,
+  }
+  appliedFilters.value = {
+    roleName: '',
+    roleCode: '',
+    remark: '',
+    status: 'all',
+    dateRange: null,
+  }
+  pageIndex.value = 1
+  fetchRoles()
+}
+
+function buildQuery(): RoleQueryDto {
+  const { roleName, roleCode, remark, status, dateRange } = appliedFilters.value
+  const hasRange = Array.isArray(dateRange) && dateRange.length === 2
+  const start = hasRange ? dateRange![0] : undefined
+  const end = hasRange ? dateRange![1] : undefined
+  const endWithDay = typeof end === 'number' ? end + 24 * 60 * 60 * 1000 - 1 : undefined
+
+  return {
+    pageIndex: pageIndex.value,
+    pageSize: pageSize.value,
+    roleName: roleName || undefined,
+    roleCode: roleCode || undefined,
+    remark: remark || undefined,
+    status: status === 'all' ? undefined : Number(status),
+    startTime: start,
+    endTime: endWithDay,
+  }
 }
 
 async function fetchRoles() {
   loading.value = true
   clearMsg()
   try {
-    roles.value = await roleListStore.fetch()
+    const res = await getRolePage(buildQuery())
+    roles.value = res.data.data.items || []
+    total.value = Number(res.data.data.total || 0)
+  } catch (e: any) {
+    showMsg(e.message, true)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function refreshRoles() {
+  loading.value = true
+  clearMsg()
+  try {
+    const res = await getRolePage(buildQuery())
+    roles.value = res.data.data.items || []
+    total.value = Number(res.data.data.total || 0)
   } catch (e: any) {
     showMsg(e.message, true)
   } finally {
@@ -164,9 +469,8 @@ async function submitForm() {
       await createRole(payload)
       showMsg('创建成功')
       await loadPermission()
-      await roleListStore.fetch(true)
       showForm.value = false
-      fetchRoles()
+      refreshRoles()
     } catch (e: any) {
       showMsg(e.message, true)
     }
@@ -186,72 +490,130 @@ async function submitForm() {
     await updateRole(payload)
     showMsg('更新成功')
     await loadPermission()
-    await roleListStore.fetch(true)
     showForm.value = false
-    fetchRoles()
+    refreshRoles()
   } catch (e: any) {
     showMsg(e.message, true)
   }
 }
 
 async function handleDelete(role: RoleDto) {
-  if (!confirm(`确认删除角色 ${role.roleName} 吗？`)) return
+  const ok = await confirmAction(`确认删除角色 ${role.roleName} 吗？`)
+  if (!ok) return
   try {
     await deleteRole(role.id)
     showMsg('删除成功')
     await loadPermission()
-    await roleListStore.fetch(true)
-    fetchRoles()
+    refreshRoles()
   } catch (e: any) {
     showMsg(e.message, true)
   }
 }
 
-const columns = computed<DataTableColumns<RoleDto>>(() => [
-  { title: '角色名称', key: 'roleName' },
-  { title: '编码', key: 'roleCode' },
-  {
-    title: '状态',
-    key: 'status',
-    render: (row) =>
-      h(NTag, { size: 'small', type: statusType(row.status) as any }, { default: () => statusLabel(row.status) }),
-  },
-  { title: '排序', key: 'sort' },
-  {
-    title: '备注',
-    key: 'remark',
-    render: (row) => row.remark || '-',
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    render: (row) => {
-      const actions: any[] = []
-      if (hasPermission('sys:role:edit')) {
-        actions.push(
-          h(
-            NButton,
-            { size: 'tiny', quaternary: true, onClick: () => openEdit(row) },
-            { default: () => '编辑' },
-          ),
-        )
-      }
-      if (hasPermission('sys:role:delete')) {
-        actions.push(
-          h(
-            NButton,
-            { size: 'tiny', quaternary: true, type: 'error', onClick: () => handleDelete(row) },
-            { default: () => '删除' },
-          ),
-        )
-      }
-      if (actions.length === 0) {
-        return h('span', { class: 'muted' }, '无权限')
-      }
-      return h(NSpace, { size: 'small' }, { default: () => actions })
-    },
-  },
-])
+const columns = computed<DataTableColumns<RoleDto>>(() => {
+  const cols: DataTableColumns<RoleDto> = []
+
+  if (isVisibleColumn('sort')) {
+    cols.push({ title: '排序', key: 'sort' })
+  }
+  if (isVisibleColumn('roleName')) {
+    cols.push({ title: '角色名称', key: 'roleName' })
+  }
+  if (isVisibleColumn('roleCode')) {
+    cols.push({ title: '编码', key: 'roleCode' })
+  }
+  if (isVisibleColumn('status')) {
+    cols.push({
+      title: '状态',
+      key: 'status',
+      render: (row) =>
+        h(NTag, { size: 'small', type: statusType(row.status) as any }, { default: () => statusLabel(row.status) }),
+    })
+  }
+  if (isVisibleColumn('remark')) {
+    cols.push({
+      title: '备注',
+      key: 'remark',
+      render: (row) => row.remark || '-',
+    })
+  }
+  if (isVisibleColumn('createTime')) {
+    cols.push({
+      title: '创建日期',
+      key: 'createTime',
+      render: (row) => formatDate(row.createTime),
+    })
+  }
+  if (isVisibleColumn('actions')) {
+    cols.push({
+      title: '操作',
+      key: 'actions',
+      render: (row) => {
+        const actions: any[] = []
+        if (hasPermission('sys:role:edit')) {
+          actions.push(
+            h(NTooltip, null, {
+              default: () => '权限',
+              trigger: () =>
+                h(
+                  NButton,
+                  { size: 'small', quaternary: true, type: 'primary', class: 'action-btn', onClick: () => openPermission(row) },
+                  {
+                    icon: () =>
+                      h(NIcon, null, {
+                        default: () => h(UserRole),
+                      }),
+                  },
+                ),
+            }),
+          )
+        }
+        if (hasPermission('sys:role:edit')) {
+          actions.push(
+            h(NTooltip, null, {
+              default: () => '编辑',
+              trigger: () =>
+                h(
+                  NButton,
+                  { size: 'small', quaternary: true, type: 'primary', class: 'action-btn', onClick: () => openEdit(row) },
+                  {
+                    icon: () =>
+                      h(NIcon, null, {
+                        default: () => h(Pen),
+                      }),
+                  },
+                ),
+            }),
+          )
+        }
+        if (hasPermission('sys:role:delete')) {
+          actions.push(
+            h(NTooltip, null, {
+              default: () => '删除',
+              trigger: () =>
+                h(
+                  NButton,
+                  { size: 'small', quaternary: true, type: 'error', class: 'action-btn', onClick: () => handleDelete(row) },
+                  {
+                    icon: () =>
+                      h(NIcon, null, {
+                        default: () => h(TrashCan),
+                      }),
+                  },
+                ),
+            }),
+          )
+        }
+        if (actions.length === 0) {
+          return h('span', { class: 'muted' }, '无权限')
+        }
+        return h(NSpace, { size: 'small' }, { default: () => actions })
+      },
+    })
+  }
+
+  return cols
+})
 
 onMounted(async () => {
   await Promise.all([fetchRoles(), fetchMenus()])
@@ -260,16 +622,135 @@ onMounted(async () => {
 
 <template>
   <n-card title="角色管理" size="large">
-    <template #header-extra>
-      <n-button v-permission="'sys:role:add'" type="primary" @click="openCreate">新建角色</n-button>
-    </template>
-
     <n-space vertical size="large">
-      <n-alert v-if="message" :type="isError ? 'error' : 'success'">
-        {{ message }}
-      </n-alert>
+      <div v-if="showSearch" class="filter-panel">
+        <n-form inline :show-feedback="false" class="filter-form">
+          <n-form-item label="角色名称">
+            <n-input v-model:value="filterForm.roleName" placeholder="请输入角色名称" clearable style="width: 200px;" />
+          </n-form-item>
+          <n-form-item label="角色编码">
+            <n-input v-model:value="filterForm.roleCode" placeholder="请输入角色编码" clearable style="width: 200px;" />
+          </n-form-item>
+          <n-form-item label="角色描述">
+            <n-input v-model:value="filterForm.remark" placeholder="请输入角色描述" clearable style="width: 240px;" />
+          </n-form-item>
+          <n-form-item label="角色状态">
+            <n-select v-model:value="filterForm.status" :options="statusOptions" style="width: 160px;" />
+          </n-form-item>
+          <n-form-item label="创建日期">
+            <n-date-picker
+              v-model:value="filterForm.dateRange"
+              type="daterange"
+              clearable
+              style="width: 260px;"
+            />
+          </n-form-item>
+          <div class="filter-actions">
+            <n-button secondary @click="resetFilters">重置</n-button>
+            <n-button type="primary" @click="applyFilters">查询</n-button>
+            <n-button text class="expand-btn" @click="toggleSearch">
+              <template #icon>
+                <n-icon><ChevronUp /></n-icon>
+              </template>
+              收起
+            </n-button>
+          </div>
+        </n-form>
+      </div>
 
-      <n-data-table :columns="columns" :data="roles" :loading="loading" :bordered="false" />
+      <div class="table-toolbar">
+        <n-button v-permission="'sys:role:add'" type="primary" @click="openCreate">新建角色</n-button>
+        <div class="table-tools">
+          <n-tooltip>
+            <template #trigger>
+              <n-button quaternary size="small" @click="toggleSearch">
+                <template #icon>
+                  <n-icon><Filter /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            {{ showSearch ? '收起筛选' : '展开筛选' }}
+          </n-tooltip>
+          <n-dropdown trigger="click" :options="densityOptions" @select="handleDensitySelect">
+            <n-tooltip>
+              <template #trigger>
+                <n-button quaternary size="small">
+                  <template #icon>
+                    <n-icon><List /></n-icon>
+                  </template>
+                </n-button>
+              </template>
+              密度
+            </n-tooltip>
+          </n-dropdown>
+          <n-popover trigger="click" placement="bottom-end">
+            <template #trigger>
+              <n-tooltip>
+                <template #trigger>
+                  <n-button quaternary size="small">
+                    <template #icon>
+                      <n-icon><Column /></n-icon>
+                    </template>
+                  </n-button>
+                </template>
+                列设置
+              </n-tooltip>
+            </template>
+            <div class="column-popover">
+              <div class="column-title">显示列</div>
+              <n-checkbox-group v-model:value="visibleColumns">
+                <n-space vertical size="small">
+                  <n-checkbox v-for="option in columnOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </n-checkbox>
+                </n-space>
+              </n-checkbox-group>
+            </div>
+          </n-popover>
+          <n-tooltip>
+            <template #trigger>
+              <n-button quaternary size="small" @click="refreshRoles">
+                <template #icon>
+                  <n-icon><Renew /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            刷新
+          </n-tooltip>
+        </div>
+      </div>
+
+      <n-data-table
+        :class="['role-table', `density-${tableDensity}`]"
+        :columns="columns"
+        :data="roles"
+        :loading="loading"
+        :bordered="false"
+        :row-props="(_, index) => ({
+          draggable: hasPermission('sys:role:edit'),
+          onDragstart: (e: DragEvent) => handleDragStart(index, e),
+          onDragover: (e: DragEvent) => handleDragOver(index, e),
+          onDrop: () => handleDrop(index),
+          class: {
+            'dragging-row': draggingIndex === index,
+            'drag-over-row': dragOverIndex === index,
+          },
+        })"
+      />
+
+      <div class="table-footer">
+        <span class="muted">共 {{ total }} 条</span>
+        <n-pagination
+          v-model:page="pageIndex"
+          v-model:page-size="pageSize"
+          :item-count="total"
+          :page-sizes="[10, 20, 50]"
+          show-size-picker
+          show-quick-jumper
+          @update:page="fetchRoles"
+          @update:page-size="fetchRoles"
+        />
+      </div>
     </n-space>
   </n-card>
 
@@ -281,7 +762,10 @@ onMounted(async () => {
             <n-input v-model:value="form.roleName" />
           </n-form-item>
           <n-form-item label="角色编码">
-            <n-input v-model:value="form.roleCode" :disabled="formMode === 'edit'" />
+            <n-input
+              v-model:value="form.roleCode"
+              :disabled="formMode === 'edit' && !hasPermission('sys:role:editcode')"
+            />
           </n-form-item>
           <n-form-item label="状态">
             <n-select
@@ -300,24 +784,6 @@ onMounted(async () => {
             <n-input v-model:value="form.remark" type="textarea" rows="3" />
           </n-form-item>
         </n-space>
-
-        <div class="menu-block">
-          <div class="menu-title">权限菜单</div>
-          <n-checkbox-group v-model:value="form.menuIds">
-            <n-space vertical>
-              <n-checkbox
-                v-for="row in menuFlat"
-                :key="row.menu.id"
-                :value="row.menu.id"
-                :style="{ marginLeft: `${row.level * 16}px` }"
-              >
-                <span class="menu-name">{{ row.menu.menuName }}</span>
-                <span class="menu-meta">{{ typeLabel(row.menu.menuType) }}</span>
-                <span class="menu-meta">{{ row.menu.permission || '-' }}</span>
-              </n-checkbox>
-            </n-space>
-          </n-checkbox-group>
-        </div>
       </n-form>
 
       <template #footer>
@@ -328,30 +794,182 @@ onMounted(async () => {
       </template>
     </n-card>
   </n-modal>
+
+  <n-modal v-model:show="showPermDialog">
+    <n-card style="width: min(720px, 92vw);" title="菜单权限">
+      <div class="perm-toolbar">
+        <div class="perm-title">
+          <span>当前角色：</span>
+          <strong>{{ permRole?.roleName || '-' }}</strong>
+        </div>
+        <div class="perm-actions">
+          <n-button size="small" secondary @click="expandAllMenus">全部展开</n-button>
+          <n-button size="small" secondary @click="collapseAllMenus">全部折叠</n-button>
+          <n-button size="small" secondary @click="selectAllMenus">选中全部</n-button>
+          <n-button size="small" secondary @click="clearMenuSelection">清空选择</n-button>
+          <n-button size="small" secondary @click="invertMenuSelection">反选</n-button>
+        </div>
+      </div>
+
+      <div class="perm-tree">
+        <n-tree
+          block-line
+          checkable
+          cascade
+          expand-on-click
+          :loading="permLoading"
+          :data="menuTreeOptions"
+          v-model:checked-keys="permMenuIds"
+          v-model:expanded-keys="permExpandedKeys"
+        />
+      </div>
+
+      <template #footer>
+        <n-space justify="end">
+          <n-button secondary @click="showPermDialog = false">取消</n-button>
+          <n-button type="primary" @click="submitPermissions">保存</n-button>
+        </n-space>
+      </template>
+    </n-card>
+  </n-modal>
 </template>
 
 <style scoped>
-.menu-block {
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.table-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.table-alert {
+  margin-bottom: 8px;
+}
+
+.table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-top: 12px;
-  padding: 12px;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.filter-panel {
+  padding: 16px 18px;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--color-bg-light);
 }
 
-.menu-title {
-  font-weight: 600;
-  margin-bottom: 10px;
+.filter-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: center;
 }
 
-.menu-name {
-  font-weight: 600;
-  margin-right: 8px;
+.filter-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
 }
 
-.menu-meta {
+.expand-btn {
+  padding-left: 4px;
+}
+
+.column-popover {
+  min-width: 160px;
+}
+
+.column-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.role-table :deep(.n-data-table-th) {
+  font-weight: 600;
+}
+
+.role-table :deep(.n-data-table-tr) {
+  cursor: grab;
+}
+
+.role-table :deep(.n-data-table-tr.dragging-row) {
+  cursor: grabbing;
+}
+
+.role-table.density-compact :deep(.n-data-table-th),
+.role-table.density-compact :deep(.n-data-table-td) {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.role-table.density-default :deep(.n-data-table-th),
+.role-table.density-default :deep(.n-data-table-td) {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.role-table.density-comfortable :deep(.n-data-table-th),
+.role-table.density-comfortable :deep(.n-data-table-td) {
+  padding-top: 18px;
+  padding-bottom: 18px;
+}
+
+.role-table :deep(.n-data-table-tr.dragging-row) td {
+  opacity: 0.6;
+}
+
+.role-table :deep(.n-data-table-tr.drag-over-row) td {
+  background: var(--color-bg-light);
+}
+
+.action-btn {
+  padding: 4px;
+}
+
+.action-btn :deep(.n-button__icon) {
+  font-size: 18px;
+}
+
+.perm-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.perm-title {
   color: var(--color-text-muted);
-  font-size: 0.75rem;
-  margin-left: 6px;
+}
+
+.perm-title strong {
+  color: var(--color-text-main);
+  font-weight: 600;
+}
+
+.perm-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.perm-tree {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--color-bg-light);
+  max-height: 60vh;
+  overflow: auto;
 }
 </style>

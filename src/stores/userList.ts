@@ -24,6 +24,9 @@ export const useUserListStore = defineStore('userList', {
       return JSON.stringify({
         pageIndex: query.pageIndex,
         pageSize: query.pageSize,
+        account: query.account || '',
+        phone: query.phone || '',
+        email: query.email || '',
         keyword: query.keyword || '',
         status: query.status ?? '',
       })

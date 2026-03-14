@@ -3,14 +3,13 @@
  * @file 系统设置视图：运维令牌强制与开放注册。
  */
 import { computed, onMounted, ref } from 'vue'
-import { NCard, NForm, NFormItem, NSwitch, NButton, NSpace, NAlert } from 'naive-ui'
+import { NCard, NForm, NFormItem, NSwitch, NButton, NSpace, useMessage } from 'naive-ui'
 import { getSystemConfig, updateSystemConfig } from '../../api/systemConfig'
 import { usePermissionStore } from '../../stores/permission'
 
 const loading = ref(false)
 const saving = ref(false)
-const message = ref('')
-const isError = ref(false)
+const messageApi = useMessage()
 
 const allowRegister = ref(true)
 const forceOpsToken = ref(false)
@@ -21,13 +20,13 @@ const permissionStore = usePermissionStore()
 const canEdit = computed(() => permissionStore.hasPermission('sys:config:edit'))
 
 const showMsg = (msg: string, error = false) => {
-  message.value = msg
-  isError.value = error
+  if (!msg) return
+  if (error) messageApi.error(msg)
+  else messageApi.success(msg)
 }
 
 const load = async () => {
   loading.value = true
-  showMsg('', false)
   try {
     const res = await getSystemConfig()
     allowRegister.value = res.data.data.allowRegister
@@ -44,7 +43,6 @@ const load = async () => {
 const save = async () => {
   if (!canEdit.value) return
   saving.value = true
-  showMsg('', false)
   try {
     await updateSystemConfig({
       allowRegister: allowRegister.value,
@@ -66,10 +64,6 @@ onMounted(load)
 <template>
   <n-card title="系统设置" size="large">
     <n-space vertical size="large">
-      <n-alert v-if="message" :type="isError ? 'error' : 'success'">
-        {{ message }}
-      </n-alert>
-
       <n-form :disabled="loading">
         <n-form-item label="开放注册">
           <n-space align="center" size="small">

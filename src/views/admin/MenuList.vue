@@ -4,7 +4,6 @@
  */
 import { computed, h, onMounted, ref } from 'vue'
 import {
-  NAlert,
   NButton,
   NCard,
   NDataTable,
@@ -17,6 +16,8 @@ import {
   NSpace,
   NSwitch,
   NTag,
+  useDialog,
+  useMessage,
   type DataTableColumns,
 } from 'naive-ui'
 import { createMenu, deleteMenu, getMenuById, updateMenu } from '../../api/menu'
@@ -26,8 +27,7 @@ import type { MenuCreateDto, MenuTreeDto, MenuUpdateDto } from '../../api/types'
 
 const menus = ref<MenuTreeDto[]>([])
 const loading = ref(false)
-const message = ref('')
-const isError = ref(false)
+const messageApi = useMessage()
 
 const showForm = ref(false)
 const formMode = ref<'create' | 'edit'>('create')
@@ -35,6 +35,7 @@ const formMode = ref<'create' | 'edit'>('create')
 const permissionStore = usePermissionStore()
 const { hasPermission, loadPermission } = permissionStore
 const menuTreeStore = useMenuTreeStore()
+const dialog = useDialog()
 
 const form = ref({
   id: '',
@@ -66,13 +67,27 @@ const flatMenus = computed(() => {
 })
 
 function showMsg(msg: string, error = false) {
-  message.value = msg
-  isError.value = error
+  if (!msg) return
+  if (error) messageApi.error(msg)
+  else messageApi.success(msg)
 }
 
 function clearMsg() {
-  message.value = ''
-  isError.value = false
+  // no-op for toast messages
+}
+
+function confirmAction(message: string) {
+  return new Promise<boolean>((resolve) => {
+    dialog.warning({
+      title: '确认操作',
+      content: message,
+      positiveText: '确认',
+      negativeText: '取消',
+      onPositiveClick: () => resolve(true),
+      onNegativeClick: () => resolve(false),
+      onClose: () => resolve(false),
+    })
+  })
 }
 
 function typeLabel(t: number) {
@@ -205,7 +220,8 @@ async function submitForm() {
 }
 
 async function handleDelete(menu: MenuTreeDto) {
-  if (!confirm(`确认删除菜单 ${menu.menuName} 吗？`)) return
+  const ok = await confirmAction(`确认删除菜单 ${menu.menuName} 吗？`)
+  if (!ok) return
   try {
     await deleteMenu(menu.id)
     showMsg('删除成功')
@@ -304,10 +320,6 @@ onMounted(fetchMenus)
     </template>
 
     <n-space vertical size="large">
-      <n-alert v-if="message" :type="isError ? 'error' : 'success'">
-        {{ message }}
-      </n-alert>
-
       <n-data-table :columns="columns" :data="flatMenus" :loading="loading" :bordered="false" />
     </n-space>
   </n-card>

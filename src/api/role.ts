@@ -2,13 +2,20 @@
  * @file 角色管理接口封装。
  */
 import request from './request'
-import type { ApiResult, RoleDto, RoleCreateDto, RoleUpdateDto } from './types'
+import type { ApiResult, PageResult, RoleDto, RoleCreateDto, RoleQueryDto, RoleSortUpdateDto, RoleUpdateDto } from './types'
 
 /**
  * @description 获取所有角色。
  */
 export function getAllRoles() {
   return request.get<ApiResult<RoleDto[]>>('/Role')
+}
+
+/**
+ * @description 分页查询角色列表。
+ */
+export function getRolePage(params: RoleQueryDto) {
+  return request.get<ApiResult<PageResult<RoleDto>>>('/Role/page', { params })
 }
 
 /**
@@ -37,4 +44,11 @@ export function updateRole(data: RoleUpdateDto) {
  */
 export function deleteRole(id: string) {
   return request.delete<ApiResult<boolean>>(`/Role/${id}`)
+}
+
+/**
+ * @description 更新角色排序。
+ */
+export function updateRoleSort(data: RoleSortUpdateDto[]) {
+  return request.put<ApiResult<boolean>>('/Role/sort', data)
 }

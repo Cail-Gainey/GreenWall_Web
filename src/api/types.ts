@@ -205,6 +205,9 @@ export interface GitHubPushStatusDto {
 export interface UserQueryDto {
   pageIndex?: number
   pageSize?: number
+  account?: string
+  phone?: string
+  email?: string
   keyword?: string
   status?: number
 }
@@ -273,6 +276,20 @@ export interface RoleDto {
 }
 
 /**
+ * @description 角色分页查询参数。
+ */
+export interface RoleQueryDto {
+  pageIndex?: number
+  pageSize?: number
+  roleName?: string
+  roleCode?: string
+  remark?: string
+  status?: number
+  startTime?: number
+  endTime?: number
+}
+
+/**
  * @description 创建角色请求。
  */
 export interface RoleCreateDto {
@@ -295,6 +312,14 @@ export interface RoleUpdateDto {
   status: number
   remark?: string
   menuIds?: string[]
+}
+
+/**
+ * @description 角色排序更新请求。
+ */
+export interface RoleSortUpdateDto {
+  id: string
+  sort: number
 }
 
 /**

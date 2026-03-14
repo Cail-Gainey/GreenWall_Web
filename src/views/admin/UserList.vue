@@ -4,27 +4,35 @@
  */
 import { computed, h, onMounted, ref } from 'vue'
 import {
-  NAlert,
+  NAvatar,
   NButton,
   NCard,
   NCheckbox,
   NCheckboxGroup,
   NDataTable,
+  NDropdown,
   NForm,
   NFormItem,
   NInput,
+  NIcon,
   NModal,
   NPagination,
+  NPopover,
   NSelect,
   NSpace,
   NTag,
+  NTooltip,
+  useDialog,
+  useMessage,
   type DataTableColumns,
 } from 'naive-ui'
+import { Column, FitToScreen, List, Pen, Renew, TrashCan, UserRole, ChevronDown, ChevronUp } from '@vicons/carbon'
 import { createUser, deleteUser, updateUser } from '../../api/user'
 import { useRoleListStore } from '../../stores/roleList'
 import { assignUserRoles } from '../../api/permission'
 import { useUserListStore } from '../../stores/userList'
 import { usePermissionStore } from '../../stores/permission'
+import defaultAvatar from '../../assets/user.png'
 import type {
   RoleDto,
   UserCreateDto,
@@ -36,12 +44,29 @@ const users = ref<UserListItemDto[]>([])
 const total = ref(0)
 const pageIndex = ref(1)
 const pageSize = ref(10)
-const keyword = ref('')
+const account = ref('')
+const phone = ref('')
+const email = ref('')
 const status = ref<'all' | '1' | '2' | '3'>('all')
 const loading = ref(false)
 
-const message = ref('')
-const isError = ref(false)
+const showAdvanced = ref(false)
+const tableDensity = ref<'compact' | 'default' | 'comfortable'>('default')
+const visibleColumns = ref<
+  Array<'avatar' | 'account' | 'nickName' | 'email' | 'sex' | 'phone' | 'status' | 'createTime' | 'actions'>
+>([
+  'avatar',
+  'account',
+  'nickName',
+  'email',
+  'sex',
+  'phone',
+  'status',
+  'createTime',
+  'actions',
+])
+const isFullscreen = ref(false)
+const checkedRowKeys = ref<Array<string | number>>([])
 
 const roles = ref<RoleDto[]>([])
 
@@ -69,6 +94,8 @@ const permissionStore = usePermissionStore()
 const { hasPermission, loadPermission } = permissionStore
 const userListStore = useUserListStore()
 const roleListStore = useRoleListStore()
+const dialog = useDialog()
+const messageApi = useMessage()
 
 const roleCodeToId = computed(() => {
   return new Map(roles.value.map((r) => [r.roleCode, r.id]))
@@ -78,7 +105,7 @@ const statusOptions = [
   { label: '全部状态', value: 'all' },
   { label: '正常', value: '1' },
   { label: '禁用', value: '2' },
-  { label: '锁定', value: '3' },
+  { label: '异常', value: '3' },
 ]
 
 const pageSizeOptions = [
@@ -87,27 +114,51 @@ const pageSizeOptions = [
   { label: '50 / 页', value: 50 },
 ]
 
+const densityOptions = [
+  { label: '紧凑', key: 'compact' },
+  { label: '默认', key: 'default' },
+  { label: '宽松', key: 'comfortable' },
+]
+
+const columnOptions = [
+  { label: '头像', value: 'avatar' },
+  { label: '用户名', value: 'account' },
+  { label: '昵称', value: 'nickName' },
+  { label: '邮箱', value: 'email' },
+  { label: '性别', value: 'sex' },
+  { label: '手机号', value: 'phone' },
+  { label: '状态', value: 'status' },
+  { label: '创建日期', value: 'createTime' },
+  { label: '操作', value: 'actions' },
+]
+
 function showMsg(msg: string, error = false) {
-  message.value = msg
-  isError.value = error
+  if (!msg) return
+  if (error) messageApi.error(msg)
+  else messageApi.success(msg)
 }
 
 function clearMsg() {
-  message.value = ''
-  isError.value = false
+  // no-op for toast messages
 }
 
 function formatDate(value?: string) {
   if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString()
+  const y = date.getFullYear()
+  const m = date.getMonth() + 1
+  const d = date.getDate()
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  const ss = String(date.getSeconds()).padStart(2, '0')
+  return `${y}/${m}/${d} ${hh}:${mm}:${ss}`
 }
 
 function statusLabel(s: number) {
   if (s === 1) return '正常'
   if (s === 2) return '禁用'
-  return '锁定'
+  return '异常'
 }
 
 function statusType(s: number) {
@@ -129,9 +180,35 @@ async function fetchUsers() {
     const page = await userListStore.fetch({
       pageIndex: pageIndex.value,
       pageSize: pageSize.value,
-      keyword: keyword.value.trim() || undefined,
+      account: account.value.trim() || undefined,
+      phone: phone.value.trim() || undefined,
+      email: email.value.trim() || undefined,
       status: status.value === 'all' ? undefined : Number(status.value),
     })
+    users.value = page.items || []
+    total.value = Number(page.total || 0)
+  } catch (e: any) {
+    showMsg(e.message, true)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function refreshUsers() {
+  loading.value = true
+  clearMsg()
+  try {
+    const page = await userListStore.fetch(
+      {
+        pageIndex: pageIndex.value,
+        pageSize: pageSize.value,
+        account: account.value.trim() || undefined,
+        phone: phone.value.trim() || undefined,
+        email: email.value.trim() || undefined,
+        status: status.value === 'all' ? undefined : Number(status.value),
+      },
+      true,
+    )
     users.value = page.items || []
     total.value = Number(page.total || 0)
   } catch (e: any) {
@@ -150,10 +227,51 @@ async function fetchRoles() {
 }
 
 function resetFilters() {
-  keyword.value = ''
+  account.value = ''
+  phone.value = ''
+  email.value = ''
   status.value = 'all'
   pageIndex.value = 1
   fetchUsers()
+}
+
+function handleSearch() {
+  pageIndex.value = 1
+  fetchUsers()
+}
+
+function toggleAdvanced() {
+  showAdvanced.value = !showAdvanced.value
+}
+
+function toggleFullscreen() {
+  isFullscreen.value = !isFullscreen.value
+}
+
+function confirmAction(message: string) {
+  return new Promise<boolean>((resolve) => {
+    dialog.warning({
+      title: '确认操作',
+      content: message,
+      positiveText: '确认',
+      negativeText: '取消',
+      onPositiveClick: () => resolve(true),
+      onNegativeClick: () => resolve(false),
+      onClose: () => resolve(false),
+    })
+  })
+}
+
+function handleDensitySelect(key: string | number) {
+  if (key === 'compact' || key === 'default' || key === 'comfortable') {
+    tableDensity.value = key
+  }
+}
+
+function isVisibleColumn(
+  key: 'avatar' | 'account' | 'nickName' | 'email' | 'sex' | 'phone' | 'status' | 'createTime' | 'actions',
+) {
+  return visibleColumns.value.includes(key)
 }
 
 function openCreate() {
@@ -217,7 +335,9 @@ async function submitForm() {
         {
           pageIndex: pageIndex.value,
           pageSize: pageSize.value,
-          keyword: keyword.value.trim() || undefined,
+          account: account.value.trim() || undefined,
+          phone: phone.value.trim() || undefined,
+          email: email.value.trim() || undefined,
           status: status.value === 'all' ? undefined : Number(status.value),
         },
         true,
@@ -246,7 +366,9 @@ async function submitForm() {
       {
         pageIndex: pageIndex.value,
         pageSize: pageSize.value,
-        keyword: keyword.value.trim() || undefined,
+        account: account.value.trim() || undefined,
+        phone: phone.value.trim() || undefined,
+        email: email.value.trim() || undefined,
         status: status.value === 'all' ? undefined : Number(status.value),
       },
       true,
@@ -259,7 +381,8 @@ async function submitForm() {
 }
 
 async function handleDelete(user: UserListItemDto) {
-  if (!confirm(`确认删除用户 ${user.account} 吗？`)) return
+  const ok = await confirmAction(`确认删除用户 ${user.account} 吗？`)
+  if (!ok) return
   try {
     await deleteUser(user.id)
     showMsg('删除成功')
@@ -268,7 +391,9 @@ async function handleDelete(user: UserListItemDto) {
       {
         pageIndex: pageIndex.value,
         pageSize: pageSize.value,
-        keyword: keyword.value.trim() || undefined,
+        account: account.value.trim() || undefined,
+        phone: phone.value.trim() || undefined,
+        email: email.value.trim() || undefined,
         status: status.value === 'all' ? undefined : Number(status.value),
       },
       true,
@@ -304,7 +429,9 @@ async function submitAssign() {
       {
         pageIndex: pageIndex.value,
         pageSize: pageSize.value,
-        keyword: keyword.value.trim() || undefined,
+        account: account.value.trim() || undefined,
+        phone: phone.value.trim() || undefined,
+        email: email.value.trim() || undefined,
         status: status.value === 'all' ? undefined : Number(status.value),
       },
       true,
@@ -316,105 +443,159 @@ async function submitAssign() {
   }
 }
 
-const columns = computed<DataTableColumns<UserListItemDto>>(() => [
-  {
-    title: '账号',
-    key: 'account',
-    render: (row) =>
-      h('div', {}, [
-        h('div', { class: 'cell-main' }, row.account),
-        h('div', { class: 'cell-sub' }, row.phone || '-'),
-      ]),
-  },
-  {
-    title: '昵称',
-    key: 'nickName',
-    render: (row) =>
-      h('div', {}, [
-        h('div', { class: 'cell-main' }, row.nickName || '-'),
-        h('div', { class: 'cell-sub' }, sexLabel(row.sex)),
-      ]),
-  },
-  {
-    title: '邮箱',
-    key: 'email',
-    render: (row) =>
-      h('div', {}, [
-        h('div', { class: 'cell-main' }, row.email || '-'),
-        h('div', { class: 'cell-sub' }, `最近登录：${formatDate(row.lastLoginTime)}`),
-      ]),
-  },
-  {
-    title: '角色',
-    key: 'roles',
-    render: (row) =>
-      h(
-        NSpace,
-        { size: 'small' },
-        {
-          default: () =>
-            row.roles.length === 0
-              ? [h(NTag, { size: 'small', type: 'default' }, { default: () => '无' })]
-              : row.roles.map((role) =>
-                  h(NTag, { size: 'small', type: 'info' }, { default: () => role }),
+const columns = computed<DataTableColumns<UserListItemDto>>(() => {
+  const cols: DataTableColumns<UserListItemDto> = [
+    { type: 'selection' },
+  ]
+
+  if (isVisibleColumn('avatar')) {
+    cols.push({
+      title: '头像',
+      key: 'avatar',
+      width: 80,
+      render: (row) =>
+        h(NAvatar, {
+          round: true,
+          size: 40,
+          src: row.avatar || defaultAvatar,
+          fallbackSrc: defaultAvatar,
+        }),
+    })
+  }
+
+  if (isVisibleColumn('account')) {
+    cols.push({
+      title: '用户名',
+      key: 'account',
+      render: (row) => row.account,
+    })
+  }
+
+  if (isVisibleColumn('nickName')) {
+    cols.push({
+      title: '昵称',
+      key: 'nickName',
+      render: (row) => row.nickName || '-',
+    })
+  }
+
+  if (isVisibleColumn('email')) {
+    cols.push({
+      title: '邮箱',
+      key: 'email',
+      render: (row) => row.email || '-',
+    })
+  }
+
+  if (isVisibleColumn('sex')) {
+    cols.push({
+      title: '性别',
+      key: 'sex',
+      render: (row) => sexLabel(row.sex),
+      width: 90,
+    })
+  }
+
+  if (isVisibleColumn('phone')) {
+    cols.push({
+      title: '手机号',
+      key: 'phone',
+      render: (row) => row.phone || '-',
+    })
+  }
+
+  if (isVisibleColumn('status')) {
+    cols.push({
+      title: '状态',
+      key: 'status',
+      render: (row) =>
+        h(
+          NTag,
+          { size: 'small', type: statusType(row.status) as any },
+          { default: () => statusLabel(row.status) },
+        ),
+      width: 110,
+    })
+  }
+
+  if (isVisibleColumn('createTime')) {
+    cols.push({
+      title: '创建日期',
+      key: 'createTime',
+      render: (row: UserListItemDto) => formatDate(row.createTime),
+    })
+  }
+
+  if (isVisibleColumn('actions')) {
+    cols.push({
+      title: '操作',
+      key: 'actions',
+      render: (row) => {
+        const actions: any[] = []
+        if (hasPermission('sys:user:edit')) {
+          actions.push(
+            h(NTooltip, null, {
+              default: () => '编辑',
+              trigger: () =>
+                h(
+                  NButton,
+                  { size: 'small', quaternary: true, type: 'primary', class: 'action-btn', onClick: () => openEdit(row) },
+                  {
+                    icon: () =>
+                      h(NIcon, null, {
+                        default: () => h(Pen),
+                      }),
+                  },
                 ),
-        },
-      ),
-  },
-  {
-    title: '状态',
-    key: 'status',
-    render: (row) =>
-      h(
-        NTag,
-        { size: 'small', type: statusType(row.status) as any },
-        { default: () => statusLabel(row.status) },
-      ),
-  },
-  {
-    title: '创建时间',
-    key: 'createTime',
-    render: (row) => formatDate(row.createTime),
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    render: (row) => {
-      const actions: any[] = []
-      if (hasPermission('sys:user:edit')) {
-        actions.push(
-          h(
-            NButton,
-            { size: 'tiny', quaternary: true, onClick: () => openEdit(row) },
-            { default: () => '编辑' },
-          ),
-        )
-      }
-      if (hasPermission('sys:user:assign')) {
-        actions.push(
-          h(
-            NButton,
-            { size: 'tiny', quaternary: true, onClick: () => openAssign(row) },
-            { default: () => '分配角色' },
-          ),
-        )
-      }
-      if (hasPermission('sys:user:delete')) {
-        actions.push(
-          h(
-            NButton,
-            { size: 'tiny', quaternary: true, type: 'error', onClick: () => handleDelete(row) },
-            { default: () => '删除' },
-          ),
-        )
-      }
-      if (actions.length === 0) {
-        return h('span', { class: 'muted' }, '无权限')
-      }
-      return h(NSpace, { size: 'small' }, { default: () => actions })
-    },
-  },
-])
+            }),
+          )
+        }
+        if (hasPermission('sys:user:assign')) {
+          actions.push(
+            h(NTooltip, null, {
+              default: () => '分配角色',
+              trigger: () =>
+                h(
+                  NButton,
+                  { size: 'small', quaternary: true, type: 'primary', class: 'action-btn', onClick: () => openAssign(row) },
+                  {
+                    icon: () =>
+                      h(NIcon, null, {
+                        default: () => h(UserRole),
+                      }),
+                  },
+                ),
+            }),
+          )
+        }
+        if (hasPermission('sys:user:delete')) {
+          actions.push(
+            h(NTooltip, null, {
+              default: () => '删除',
+              trigger: () =>
+                h(
+                  NButton,
+                  { size: 'small', quaternary: true, type: 'error', class: 'action-btn', onClick: () => handleDelete(row) },
+                  {
+                    icon: () =>
+                      h(NIcon, null, {
+                        default: () => h(TrashCan),
+                      }),
+                  },
+                ),
+            }),
+          )
+        }
+        if (actions.length === 0) {
+          return h('span', { class: 'muted' }, '无权限')
+        }
+        return h(NSpace, { size: 'small' }, { default: () => actions })
+      },
+    })
+  }
+
+  return cols
+})
 
 onMounted(async () => {
   await Promise.all([fetchUsers(), fetchRoles()])
@@ -422,42 +603,135 @@ onMounted(async () => {
 </script>
 
 <template>
-  <n-card title="用户管理" size="large">
-    <template #header-extra>
-      <n-button v-permission="'sys:user:add'" type="primary" @click="openCreate">新建用户</n-button>
-    </template>
+  <n-card title="用户管理" size="large" :class="['user-card', { fullscreen: isFullscreen }]">
+    <div class="filter-panel">
+      <n-form inline :show-feedback="false" class="filter-form">
+        <n-form-item label="用户名">
+          <n-input v-model:value="account" placeholder="请输入用户名" clearable style="width: 200px;" />
+        </n-form-item>
+        <n-form-item label="手机号">
+          <n-input v-model:value="phone" placeholder="请输入手机号" clearable style="width: 200px;" />
+        </n-form-item>
+        <n-form-item label="邮箱">
+          <n-input v-model:value="email" placeholder="请输入邮箱" clearable style="width: 220px;" />
+        </n-form-item>
+        <div class="filter-actions">
+          <n-button secondary @click="resetFilters">重置</n-button>
+          <n-button type="primary" @click="handleSearch">查询</n-button>
+          <n-button text class="expand-btn" @click="toggleAdvanced">
+            <template #icon>
+              <n-icon>
+                <component :is="showAdvanced ? ChevronUp : ChevronDown" />
+              </n-icon>
+            </template>
+            {{ showAdvanced ? '收起' : '展开' }}
+          </n-button>
+        </div>
+      </n-form>
+      <div v-if="showAdvanced" class="filter-advanced">
+        <n-form inline :show-feedback="false">
+          <n-form-item label="状态">
+            <n-select v-model:value="status" :options="statusOptions" style="width: 160px;" />
+          </n-form-item>
+          <n-form-item label="每页">
+            <n-select
+              v-model:value="pageSize"
+              :options="pageSizeOptions"
+              style="width: 130px;"
+              @update:value="() => { pageIndex = 1; fetchUsers() }"
+            />
+          </n-form-item>
+        </n-form>
+      </div>
+    </div>
 
-    <n-space vertical size="large">
-      <n-space wrap>
-        <n-input v-model:value="keyword" placeholder="搜索账号/昵称/邮箱/手机号" style="width: 260px;" />
-        <n-select v-model:value="status" :options="statusOptions" style="width: 150px;" />
-        <n-button @click="() => { pageIndex = 1; fetchUsers() }">搜索</n-button>
-        <n-button secondary @click="resetFilters">重置</n-button>
-        <n-select
-          v-model:value="pageSize"
-          :options="pageSizeOptions"
-          style="width: 130px;"
-          @update:value="() => { pageIndex = 1; fetchUsers() }"
-        />
-      </n-space>
+    <div class="table-panel">
+      <div class="table-toolbar">
+        <n-button v-permission="'sys:user:add'" type="primary" @click="openCreate">新增用户</n-button>
+        <div class="table-tools">
+          <n-tooltip>
+            <template #trigger>
+              <n-button quaternary size="small" @click="refreshUsers">
+                <template #icon>
+                  <n-icon><Renew /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            刷新
+          </n-tooltip>
+          <n-dropdown trigger="click" :options="densityOptions" @select="handleDensitySelect">
+            <n-tooltip>
+              <template #trigger>
+                <n-button quaternary size="small">
+                  <template #icon>
+                    <n-icon><List /></n-icon>
+                  </template>
+                </n-button>
+              </template>
+              密度
+            </n-tooltip>
+          </n-dropdown>
+          <n-popover trigger="click" placement="bottom-end">
+            <template #trigger>
+              <n-tooltip>
+                <template #trigger>
+                  <n-button quaternary size="small">
+                    <template #icon>
+                      <n-icon><Column /></n-icon>
+                    </template>
+                  </n-button>
+                </template>
+                列设置
+              </n-tooltip>
+            </template>
+            <div class="column-popover">
+              <div class="column-title">显示列</div>
+              <n-checkbox-group v-model:value="visibleColumns">
+                <n-space vertical size="small">
+                  <n-checkbox v-for="option in columnOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </n-checkbox>
+                </n-space>
+              </n-checkbox-group>
+            </div>
+          </n-popover>
+          <n-tooltip>
+            <template #trigger>
+              <n-button quaternary size="small" @click="toggleFullscreen">
+                <template #icon>
+                  <n-icon><FitToScreen /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            全屏
+          </n-tooltip>
+        </div>
+      </div>
 
-      <n-alert v-if="message" :type="isError ? 'error' : 'success'">
-        {{ message }}
-      </n-alert>
+      <n-data-table
+        v-model:checked-row-keys="checkedRowKeys"
+        :columns="columns"
+        :data="users"
+        :loading="loading"
+        :bordered="false"
+        :row-key="(row) => row.id"
+        :class="['user-table', `density-${tableDensity}`]"
+      />
 
-      <n-data-table :columns="columns" :data="users" :loading="loading" :bordered="false" />
-
-      <n-space justify="space-between" align="center">
+      <div class="table-footer">
         <span class="muted">共 {{ total }} 条</span>
         <n-pagination
           v-model:page="pageIndex"
           v-model:page-size="pageSize"
           :item-count="total"
+          :page-sizes="[10, 20, 50]"
+          show-size-picker
+          show-quick-jumper
           @update:page="fetchUsers"
           @update:page-size="fetchUsers"
         />
-      </n-space>
-    </n-space>
+      </div>
+    </div>
   </n-card>
 
   <n-modal v-model:show="showForm">
@@ -496,7 +770,7 @@ onMounted(async () => {
               :options="[
                 { label: '正常', value: 1 },
                 { label: '禁用', value: 2 },
-                { label: '锁定', value: 3 },
+                { label: '异常', value: 3 },
               ]"
               style="width: 160px;"
             />
@@ -553,6 +827,107 @@ onMounted(async () => {
   color: var(--color-text-muted);
 }
 
+.user-card.fullscreen {
+  position: fixed;
+  inset: 16px;
+  z-index: 1000;
+  margin: 0;
+}
+
+.user-card.fullscreen :deep(.n-card__content) {
+  max-height: calc(100vh - 140px);
+  overflow: auto;
+}
+
+.filter-panel {
+  padding: 16px 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-light);
+}
+
+.filter-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: center;
+}
+
+.filter-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.filter-advanced {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--color-border);
+}
+
+.expand-btn {
+  padding-left: 4px;
+}
+
+.table-panel {
+  margin-top: 18px;
+}
+
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.table-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.table-alert {
+  margin-bottom: 12px;
+}
+
+.table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.column-popover {
+  min-width: 160px;
+}
+
+.column-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.action-btn {
+  padding: 4px;
+}
+
+.action-btn :deep(.n-button__icon) {
+  font-size: 18px;
+}
+
+.user-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.2;
+}
+
 .cell-main {
   font-weight: 600;
 }
@@ -560,7 +935,39 @@ onMounted(async () => {
 .cell-sub {
   font-size: 0.75rem;
   color: var(--color-text-muted);
-  margin-top: 2px;
+  margin-top: 0;
+}
+
+.cell-sub.weak {
+  opacity: 0.85;
+}
+
+.user-table.density-compact :deep(.n-data-table-th),
+.user-table.density-compact :deep(.n-data-table-td) {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.user-table.density-default :deep(.n-data-table-th),
+.user-table.density-default :deep(.n-data-table-td) {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.user-table.density-comfortable :deep(.n-data-table-th),
+.user-table.density-comfortable :deep(.n-data-table-td) {
+  padding-top: 18px;
+  padding-bottom: 18px;
+}
+
+.user-table :deep(.n-data-table-th) {
+  color: var(--color-text-main);
+  font-weight: 600;
+}
+
+.user-table :deep(.n-data-table-td) {
+  color: var(--color-text-main);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .role-area {
