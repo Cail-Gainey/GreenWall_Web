@@ -10,10 +10,12 @@ import type { UserProfileDto } from "../api/types";
 import userAvatarFallback from "../assets/user.png";
 import logoUrl from "../assets/logo.png";
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     user: UserProfileDto | null;
     showBrand?: boolean;
-}>();
+}>(), {
+    showBrand: true,
+});
 
 const emit = defineEmits<{
     openProfile: [];
@@ -66,12 +68,9 @@ function handleProfileSelect(key: string | number) {
     <div class="admin-header">
         <div class="header-left">
             <div v-if="showBrand !== false" class="brand">
-                <div class="brand-badge">
-                    <img :src="logoUrl" alt="logo" class="brand-logo" />
-                </div>
-                <div>
+                <img :src="logoUrl" alt="logo" class="brand-logo" />
+                <div class="brand-text">
                     <div class="brand-title">Green Wall</div>
-                    <div class="brand-sub">Admin Console</div>
                 </div>
             </div>
             <slot name="left"></slot>
@@ -132,28 +131,19 @@ function handleProfileSelect(key: string | number) {
     gap: 12px;
 }
 
-.brand-badge {
-    width: 32px;
-    height: 32px;
-    border-radius: 10px;
-    background: var(--color-primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.brand-logo {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
 }
 
-.brand-logo {
-    width: 20px;
-    height: 20px;
-    object-fit: contain;
+.brand-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .brand-title {
     font-weight: 700;
-}
-
-.brand-sub {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
 }
 </style>

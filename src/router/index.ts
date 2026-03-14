@@ -13,6 +13,8 @@ declare module 'vue-router' {
     requiresAuth?: boolean
     roles?: string[]
     permission?: string
+    title?: string
+    affix?: boolean
   }
 }
 
@@ -52,67 +54,67 @@ const router = createRouter({
           path: '',
           name: 'admin-dashboard',
           component: () => import('../views/admin/DashboardView.vue'),
-          meta: { permission: 'sys:dashboard' }
+          meta: { permission: 'sys:dashboard', title: '仪表盘', affix: true }
         },
         {
           path: 'users',
           name: 'admin-users',
           component: () => import('../views/admin/UserList.vue'),
-          meta: { permission: 'sys:user:list' }
+          meta: { permission: 'sys:user:list', title: '用户管理' }
         },
         {
           path: 'roles',
           name: 'admin-roles',
           component: () => import('../views/admin/RoleList.vue'),
-          meta: { permission: 'sys:role:list' }
+          meta: { permission: 'sys:role:list', title: '角色管理' }
         },
         {
           path: 'menus',
           name: 'admin-menus',
           component: () => import('../views/admin/MenuList.vue'),
-          meta: { permission: 'sys:menu:list' }
+          meta: { permission: 'sys:menu:list', title: '菜单管理' }
         },
         {
           path: 'monitor',
           name: 'admin-monitor',
           component: () => import('../views/admin/MonitorView.vue'),
-          meta: { permission: 'sys:monitor:view' }
+          meta: { permission: 'sys:monitor:view', title: '系统监控' }
         },
         {
           path: 'settings',
           name: 'admin-settings',
           component: () => import('../views/admin/SystemSettingsView.vue'),
-          meta: { permission: 'sys:config:view' }
+          meta: { permission: 'sys:config:view', title: '系统设置' }
         },
         {
           path: 'dicts',
           name: 'admin-dicts',
           component: () => import('../views/admin/DictView.vue'),
-          meta: { permission: 'sys:dict:type:list' }
+          meta: { permission: 'sys:dict:type:list', title: '字典管理' }
         },
         {
           path: 'params',
           name: 'admin-params',
           component: () => import('../views/admin/ParamConfigView.vue'),
-          meta: { permission: 'sys:param:list' }
+          meta: { permission: 'sys:param:list', title: '参数配置' }
         },
         {
           path: 'logs/oper',
           name: 'admin-oper-logs',
           component: () => import('../views/admin/OperLogView.vue'),
-          meta: { permission: 'sys:log:oper' }
+          meta: { permission: 'sys:log:oper', title: '操作日志' }
         },
         {
           path: 'logs/login',
           name: 'admin-login-logs',
           component: () => import('../views/admin/LoginLogView.vue'),
-          meta: { permission: 'sys:log:login' }
+          meta: { permission: 'sys:log:login', title: '登录日志' }
         },
         {
           path: 'logs/server',
           name: 'admin-server-logs',
           component: () => import('../views/admin/ServerLogView.vue'),
-          meta: { permission: 'sys:log:server' }
+          meta: { permission: 'sys:log:server', title: '服务器日志' }
         }
       ]
     },
@@ -147,7 +149,7 @@ router.beforeEach(async (to) => {
   if (!isLoaded.value) {
     const user = await loadPermission()
     if (!user) {
-      permissionStore.reset()
+      localStorage.removeItem('token')
       localStorage.removeItem('user')
       return { path: '/' }
     }

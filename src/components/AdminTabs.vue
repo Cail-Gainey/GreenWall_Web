@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NIcon, NDropdown } from 'naive-ui'
+import { NIcon } from 'naive-ui'
 import { storeToRefs } from 'pinia'
 import { usePermissionStore } from '../stores/permission'
 import { useAdminTabsStore } from '../stores/adminTabs'
@@ -87,49 +87,68 @@ const handleClose = (path: string) => {
   }
 }
 
-const dropdownX = ref(0)
-const dropdownY = ref(0)
-const dropdownShow = ref(false)
-const dropdownTarget = ref('')
+/* ---- 右键菜单 ---- */
+const menuRef = ref<HTMLElement | null>(null)
+const menuVisible = ref(false)
+const menuX = ref(0)
+const menuY = ref(0)
+const menuTarget = ref('')
 
-const dropdownOptions = computed(() => {
-  const target = dropdownTarget.value
+const isClosable = (tab?: { closable: boolean; pinned?: boolean } | null) =>
+  Boolean(tab && tab.closable && !tab.pinned)
+
+const menuState = computed(() => {
+  const target = menuTarget.value
   const tabs = tabsStore.tabs
   const idx = tabs.findIndex((t) => t.path === target)
-  const closable = tabs[idx]?.closable ?? false
-  const hasLeftClosable = idx > 0 && tabs.slice(0, idx).some((t) => t.closable)
-  const hasRightClosable = idx >= 0 && tabs.slice(idx + 1).some((t) => t.closable)
-  const hasOtherClosable = tabs.some((t) => t.closable && t.path !== target)
-  const hasAnyClosable = tabs.some((t) => t.closable)
+  const pinned = tabs[idx]?.pinned ?? false
+  const isCurrent = target === route.path
+  const hasLeftClosable = idx > 0 && tabs.slice(0, idx).some((t) => isClosable(t))
+  const hasRightClosable = idx >= 0 && tabs.slice(idx + 1).some((t) => isClosable(t))
+  const hasOtherClosable = tabs.some((t) => isClosable(t) && t.path !== target)
+  const hasAnyClosable = tabs.some((t) => isClosable(t))
 
-  if (!target || idx < 0) {
-    return [
-      { label: '关闭全部', key: 'close_all', disabled: !hasAnyClosable },
-    ]
+  return {
+    isCurrent,
+    pinned,
+    hasLeftClosable,
+    hasRightClosable,
+    hasOtherClosable,
+    hasAnyClosable,
+    pinLabel: pinned ? '取消固定' : '固定',
+    canPin: target !== '/admin',
   }
-
-  return [
-    { label: '关闭', key: 'close', disabled: !closable },
-    { label: '关闭左侧', key: 'close_left', disabled: !hasLeftClosable },
-    { label: '关闭右侧', key: 'close_right', disabled: !hasRightClosable },
-    { label: '关闭其他', key: 'close_others', disabled: !hasOtherClosable },
-    { label: '关闭全部', key: 'close_all', disabled: !hasAnyClosable },
-  ]
 })
 
-const openContextMenu = (path: string, event: MouseEvent) => {
-  event.preventDefault()
-  dropdownTarget.value = path
-  dropdownX.value = event.clientX
-  dropdownY.value = event.clientY
-  dropdownShow.value = true
+function clampMenuPosition() {
+  const menuEl = menuRef.value
+  if (!menuEl) return
+  const { innerWidth, innerHeight } = window
+  const rect = menuEl.getBoundingClientRect()
+  const padding = 8
+  if (menuX.value + rect.width > innerWidth - padding) {
+    menuX.value = Math.max(padding, innerWidth - rect.width - padding)
+  }
+  if (menuY.value + rect.height > innerHeight - padding) {
+    menuY.value = Math.max(padding, innerHeight - rect.height - padding)
+  }
 }
 
-const handleDropdownSelect = (key: string | number) => {
-  const target = dropdownTarget.value
+function closeMenu() {
+  menuVisible.value = false
+}
+
+function handleMenuAction(key: string) {
+  closeMenu()
+  const target = menuTarget.value
   switch (key) {
-    case 'close':
-      handleClose(target)
+    case 'refresh':
+      if (target === route.path) {
+        tabsStore.refresh()
+      }
+      break
+    case 'pin':
+      tabsStore.togglePin(target)
       break
     case 'close_left':
       tabsStore.closeLeft(target)
@@ -144,8 +163,70 @@ const handleDropdownSelect = (key: string | number) => {
       tabsStore.closeAll()
       break
   }
-  dropdownShow.value = false
 }
+
+/**
+ * 唯一的 contextmenu 监听器，注册在 document 上（capture + passive:false）。
+ * 不依赖任何 ref、不依赖事件冒泡。
+ */
+function onDocumentContextMenu(e: MouseEvent) {
+  const el = e.target as HTMLElement | null
+  if (!el) return
+
+  // 点在自定义菜单内 → 仅阻止浏览器菜单
+  if (menuRef.value?.contains(el)) {
+    e.preventDefault()
+    return
+  }
+
+  // 点在 tab-item 上 → 阻止浏览器菜单 + 显示自定义菜单
+  const tabItem = el.closest?.('[data-tab-path]') as HTMLElement | null
+  if (tabItem) {
+    e.preventDefault()
+    e.stopImmediatePropagation()
+    const path = tabItem.getAttribute('data-tab-path')
+    if (path) {
+      menuTarget.value = path
+      menuX.value = e.clientX
+      menuY.value = e.clientY
+      menuVisible.value = true
+      nextTick(() => clampMenuPosition())
+    }
+    return
+  }
+
+  // 点在标签栏空白区域 → 关闭已打开的菜单
+  const bar = el.closest?.('.admin-tabs')
+  if (bar) {
+    e.preventDefault()
+    closeMenu()
+    return
+  }
+
+  // 其他区域 → 关闭菜单
+  closeMenu()
+}
+
+function onDocPointerDown(e: PointerEvent) {
+  if (!menuVisible.value) return
+  if (menuRef.value?.contains(e.target as Node)) return
+  closeMenu()
+}
+
+onMounted(() => {
+  document.addEventListener('contextmenu', onDocumentContextMenu, {
+    capture: true,
+    passive: false,
+  })
+  document.addEventListener('pointerdown', onDocPointerDown)
+  window.addEventListener('blur', closeMenu)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('contextmenu', onDocumentContextMenu, { capture: true } as EventListenerOptions)
+  document.removeEventListener('pointerdown', onDocPointerDown)
+  window.removeEventListener('blur', closeMenu)
+})
 </script>
 
 <template>
@@ -155,16 +236,16 @@ const handleDropdownSelect = (key: string | number) => {
       :key="tab.path"
       class="tab-item"
       :class="{ active: active === tab.path }"
+      :data-tab-path="tab.path"
       role="tab"
       @click="active = tab.path"
-      @contextmenu="openContextMenu(tab.path, $event)"
     >
       <n-icon v-if="renderIcon(tab.path)" size="16" class="tab-icon">
         <component :is="renderIcon(tab.path)" />
       </n-icon>
       <span class="tab-title">{{ tab.title }}</span>
       <button
-        v-if="tab.closable"
+        v-if="isClosable(tab)"
         class="tab-close"
         @click.stop="handleClose(tab.path)"
         aria-label="关闭"
@@ -176,15 +257,46 @@ const handleDropdownSelect = (key: string | number) => {
     </div>
   </div>
 
-  <n-dropdown
-    trigger="manual"
-    :x="dropdownX"
-    :y="dropdownY"
-    :options="dropdownOptions"
-    :show="dropdownShow"
-    @select="handleDropdownSelect"
-    @clickoutside="dropdownShow = false"
-  />
+  <Teleport to="body">
+    <div
+      v-show="menuVisible"
+      ref="menuRef"
+      class="admin-tabs-ctx-menu"
+      :style="{ left: menuX + 'px', top: menuY + 'px' }"
+    >
+      <div
+        class="ctx-item"
+        :class="{ disabled: !menuState.isCurrent }"
+        @click="menuState.isCurrent && handleMenuAction('refresh')"
+      >刷新</div>
+      <div
+        class="ctx-item"
+        :class="{ disabled: !menuState.canPin }"
+        @click="menuState.canPin && handleMenuAction('pin')"
+      >{{ menuState.pinLabel }}</div>
+      <div class="ctx-divider"></div>
+      <div
+        class="ctx-item"
+        :class="{ disabled: !menuState.hasLeftClosable }"
+        @click="menuState.hasLeftClosable && handleMenuAction('close_left')"
+      >关闭左侧</div>
+      <div
+        class="ctx-item"
+        :class="{ disabled: !menuState.hasRightClosable }"
+        @click="menuState.hasRightClosable && handleMenuAction('close_right')"
+      >关闭右侧</div>
+      <div
+        class="ctx-item"
+        :class="{ disabled: !menuState.hasOtherClosable }"
+        @click="menuState.hasOtherClosable && handleMenuAction('close_others')"
+      >关闭其他</div>
+      <div
+        class="ctx-item"
+        :class="{ disabled: !menuState.hasAnyClosable }"
+        @click="menuState.hasAnyClosable && handleMenuAction('close_all')"
+      >关闭全部</div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -245,5 +357,46 @@ const handleDropdownSelect = (key: string | number) => {
 
 .tab-close:hover {
   color: var(--color-text-main);
+}
+</style>
+
+<style>
+.admin-tabs-ctx-menu {
+  position: fixed;
+  z-index: 99999;
+  min-width: 140px;
+  padding: 4px 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+  color: #333;
+  user-select: none;
+}
+
+.admin-tabs-ctx-menu .ctx-item {
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.admin-tabs-ctx-menu .ctx-item:hover {
+  background: #f3f4f6;
+}
+
+.admin-tabs-ctx-menu .ctx-item.disabled {
+  color: #c0c4cc;
+  cursor: not-allowed;
+}
+
+.admin-tabs-ctx-menu .ctx-item.disabled:hover {
+  background: transparent;
+}
+
+.admin-tabs-ctx-menu .ctx-divider {
+  height: 1px;
+  margin: 4px 8px;
+  background: #e5e7eb;
 }
 </style>
