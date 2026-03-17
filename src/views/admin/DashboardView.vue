@@ -7,6 +7,7 @@ import { NCard, NGrid, NGridItem, NStatistic, NSpace, NButton, NDataTable, NTag,
 import type { DataTableColumns } from 'naive-ui'
 import { getDashboardSummary } from '../../api/dashboard'
 import type { DashboardSummaryDto, DashboardTrendDto, LoginLogDto, OperLogDto } from '../../api/types'
+import { TimeFormatter } from '../../utils/time'
 
 const loading = ref(false)
 const summary = ref<DashboardSummaryDto | null>(null)
@@ -32,7 +33,11 @@ onMounted(() => {
 })
 
 const trendColumns = ref<DataTableColumns<DashboardTrendDto>>([
-  { title: '日期', key: 'date' },
+  {
+    title: '日期',
+    key: 'date',
+    render: (row) => TimeFormatter.formatDate(row.date),
+  },
   { title: '成功', key: 'success' },
   { title: '失败', key: 'fail' },
 ])
@@ -47,7 +52,11 @@ const loginColumns = ref<DataTableColumns<LoginLogDto>>([
       h(NTag, { size: 'small', type: row.status === 1 ? 'success' : 'error' }, { default: () => (row.status === 1 ? '成功' : '失败') }),
   },
   { title: '信息', key: 'message' },
-  { title: '时间', key: 'createTime' },
+  {
+    title: '时间',
+    key: 'createTime',
+    render: (row) => TimeFormatter.formatDateTime(row.createTime),
+  },
 ])
 
 const operColumns = ref<DataTableColumns<OperLogDto>>([
@@ -61,7 +70,11 @@ const operColumns = ref<DataTableColumns<OperLogDto>>([
       h(NTag, { size: 'small', type: row.status === 1 ? 'success' : 'error' }, { default: () => (row.status === 1 ? '成功' : '失败') }),
   },
   { title: '耗时(ms)', key: 'durationMs' },
-  { title: '时间', key: 'createTime' },
+  {
+    title: '时间',
+    key: 'createTime',
+    render: (row) => TimeFormatter.formatDateTime(row.createTime),
+  },
 ])
 
 const stats = computed(() => [

@@ -33,6 +33,7 @@ import { assignUserRoles } from '../../api/permission'
 import { useUserListStore } from '../../stores/userList'
 import { usePermissionStore } from '../../stores/permission'
 import defaultAvatar from '../../assets/user.png'
+import { TimeFormatter } from '../../utils/time'
 import type {
   RoleDto,
   UserCreateDto,
@@ -140,19 +141,6 @@ function showMsg(msg: string, error = false) {
 
 function clearMsg() {
   // no-op for toast messages
-}
-
-function formatDate(value?: string) {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  const y = date.getFullYear()
-  const m = date.getMonth() + 1
-  const d = date.getDate()
-  const hh = String(date.getHours()).padStart(2, '0')
-  const mm = String(date.getMinutes()).padStart(2, '0')
-  const ss = String(date.getSeconds()).padStart(2, '0')
-  return `${y}/${m}/${d} ${hh}:${mm}:${ss}`
 }
 
 function statusLabel(s: number) {
@@ -522,7 +510,7 @@ const columns = computed<DataTableColumns<UserListItemDto>>(() => {
     cols.push({
       title: '创建日期',
       key: 'createTime',
-      render: (row: UserListItemDto) => formatDate(row.createTime),
+      render: (row: UserListItemDto) => TimeFormatter.formatDateTime(row.createTime),
     })
   }
 

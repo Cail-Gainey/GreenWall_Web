@@ -34,6 +34,7 @@ import { createRole, deleteRole, getRoleById, getRolePage, updateRole, updateRol
 import { useMenuTreeStore } from '../../stores/menuTree'
 import { usePermissionStore } from '../../stores/permission'
 import type { MenuTreeDto, RoleCreateDto, RoleDto, RoleQueryDto, RoleSortUpdateDto, RoleUpdateDto } from '../../api/types'
+import { TimeFormatter } from '../../utils/time'
 
 const roles = ref<RoleDto[]>([])
 const menus = ref<MenuTreeDto[]>([])
@@ -154,19 +155,6 @@ function isVisibleColumn(
   key: 'roleName' | 'roleCode' | 'status' | 'sort' | 'remark' | 'createTime' | 'actions',
 ) {
   return visibleColumns.value.includes(key)
-}
-
-function formatDate(value?: string) {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  const y = date.getFullYear()
-  const m = date.getMonth() + 1
-  const d = date.getDate()
-  const hh = String(date.getHours()).padStart(2, '0')
-  const mm = String(date.getMinutes()).padStart(2, '0')
-  const ss = String(date.getSeconds()).padStart(2, '0')
-  return `${y}/${m}/${d} ${hh}:${mm}:${ss}`
 }
 
 async function applySortUpdate(list: RoleDto[]) {
@@ -541,7 +529,7 @@ const columns = computed<DataTableColumns<RoleDto>>(() => {
     cols.push({
       title: '创建日期',
       key: 'createTime',
-      render: (row) => formatDate(row.createTime),
+      render: (row) => TimeFormatter.formatDateTime(row.createTime),
     })
   }
   if (isVisibleColumn('actions')) {

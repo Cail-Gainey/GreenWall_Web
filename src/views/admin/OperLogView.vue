@@ -7,6 +7,7 @@ import { NCard, NDataTable, NInput, NSelect, NButton, NSpace, NTag, NPagination,
 import type { DataTableColumns } from 'naive-ui'
 import { clearOperLogs, getOperLogs } from '../../api/log'
 import type { OperLogDto } from '../../api/types'
+import { TimeFormatter } from '../../utils/time'
 
 const loading = ref(false)
 const keyword = ref('')
@@ -112,7 +113,11 @@ const columns = ref<DataTableColumns<OperLogDto>>([
       h(NTag, { size: 'small', type: row.status === 1 ? 'success' : 'error' }, { default: () => (row.status === 1 ? '成功' : '失败') }),
   },
   { title: '耗时(ms)', key: 'durationMs' },
-  { title: '时间', key: 'createTime' },
+  {
+    title: '时间',
+    key: 'createTime',
+    render: (row) => TimeFormatter.formatDateTime(row.createTime),
+  },
 ])
 
 onMounted(fetchLogs)

@@ -7,6 +7,7 @@ import { NCard, NSpace, NStatistic, NGrid, NGridItem, NButton, NInput, useDialog
 import { getMySqlMonitor, getRedisMonitor, getServerMonitor, restartServer, restartMySql, restartRedis, flushRedis, clearCache } from '../../api/monitor'
 import type { MySqlMonitorDto, RedisMonitorDto, ServerMonitorDto } from '../../api/types'
 import { usePermissionStore } from '../../stores/permission'
+import { TimeFormatter } from '../../utils/time'
 
 const mysql = ref<MySqlMonitorDto | null>(null)
 const redis = ref<RedisMonitorDto | null>(null)
@@ -92,7 +93,7 @@ const load = async () => {
     if (results.some((item) => item.status === 'rejected')) {
       message.error('获取监控数据失败')
     }
-    lastUpdatedAt.value = new Date().toLocaleTimeString()
+    lastUpdatedAt.value = TimeFormatter.formatDateTime(new Date())
   } catch (e: any) {
     message.error(e?.message || '获取监控数据失败')
   } finally {
@@ -240,7 +241,7 @@ const confirmOp = (title: string, action: (token?: string) => Promise<any>) => {
               <n-statistic label="查询总数" :value="mysql.questions" />
             </n-grid-item>
             <n-grid-item>
-              <n-statistic label="服务器时间" :value="mysql.serverTime" />
+              <n-statistic label="服务器时间" :value="TimeFormatter.formatDateTime(mysql.serverTime)" />
             </n-grid-item>
           </n-grid>
         </div>
@@ -401,7 +402,7 @@ const confirmOp = (title: string, action: (token?: string) => Promise<any>) => {
               <n-statistic label="进程 ID" :value="server.processId" />
             </n-grid-item>
             <n-grid-item>
-              <n-statistic label="启动时间" :value="server.processStartTime" />
+              <n-statistic label="启动时间" :value="TimeFormatter.formatDateTime(server.processStartTime)" />
             </n-grid-item>
             <n-grid-item>
               <n-statistic label="运行时长(秒)" :value="server.uptime" />

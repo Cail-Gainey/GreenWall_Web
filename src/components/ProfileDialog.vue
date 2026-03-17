@@ -10,6 +10,7 @@ import { usePermissionStore } from '../stores/permission'
 import { storeToRefs } from 'pinia'
 import type { UserProfileDto, UserProfileUpdateDto } from '../api/types'
 import userAvatarFallback from '../assets/user.png'
+import { TimeFormatter } from '../utils/time'
 import 'vue-cropper/dist/index.css'
 import { VueCropper } from 'vue-cropper'
 
@@ -98,13 +99,6 @@ function clearMsg() {
  * @description 格式化时间显示。
  * @param value 原始时间字符串
  */
-function formatDate(value?: string) {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString()
-}
-
 /**
  * @description 用用户资料填充表单。
  * @param data 用户资料
@@ -342,7 +336,7 @@ function discardPendingAvatar() {
 
         <div class="meta-block">
           <span class="meta-label">最近登录</span>
-          <span class="meta-value">{{ formatDate(form.lastLoginTime) }}</span>
+          <span class="meta-value">{{ TimeFormatter.formatDateTime(form.lastLoginTime) }}</span>
         </div>
       </n-card>
 
