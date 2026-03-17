@@ -481,6 +481,7 @@ onMounted(async () => {
   } catch {
     githubOAuthEnabled.value = true;
   }
+  window.addEventListener('contextmenu', handleGlobalContextMenu, { capture: true });
 });
 
 onBeforeUnmount(() => {
@@ -488,6 +489,7 @@ onBeforeUnmount(() => {
     window.clearInterval(pushStatusTimer);
     pushStatusTimer = null;
   }
+  window.removeEventListener('contextmenu', handleGlobalContextMenu, { capture: true });
 });
 
 const formatStatus = (status: string) => {
@@ -539,6 +541,7 @@ const clampLevel = (level: number) => Math.max(0, Math.min(4, level));
 const previewCells = ref<Set<string>>(new Set());
 const previewRandomLevels = ref<Map<string, number>>(new Map());
 const previewEnabled = ref(true);
+const isGraphHovering = ref(false);
 const previewColor = computed(() => levelToColor(clampLevel(activePatternLevel.value)));
 
 const getPatternOffsets = (pattern: boolean[][]) => {
@@ -852,14 +855,31 @@ const endPaint = () => {
 const handlePointerLeave = () => {
   endPaint();
   clearPreview();
+  isGraphHovering.value = false;
 };
 
 const handleRightClick = () => {
   if (activeTool.value === 'pattern') {
     previewEnabled.value = false;
+    activeTool.value = 'brush';
   }
   clearPreview();
   isPointerDown.value = false;
+};
+
+const handleContextMenu = (event: MouseEvent) => {
+  event.preventDefault();
+  handleRightClick();
+};
+
+const handlePointerEnter = () => {
+  isGraphHovering.value = true;
+};
+
+const handleGlobalContextMenu = (event: MouseEvent) => {
+  if (!isGraphHovering.value) return;
+  event.preventDefault();
+  handleRightClick();
 };
 
 /**
@@ -933,6 +953,7 @@ const paint = (c: number, r: number) => {
   <div
     class="contribution-graph-wrapper"
     @pointerup="endPaint"
+    @pointerenter="handlePointerEnter"
     @pointerleave="handlePointerLeave"
     @pointercancel="handlePointerLeave"
     @contextmenu.prevent="handleRightClick"
@@ -1014,6 +1035,8 @@ const paint = (c: number, r: number) => {
         :preview-color="getPreviewOverlayColor"
         :on-cell-pointer-down="startPaint"
         :on-cell-pointer-enter="hoverPaint"
+        :on-cell-context-menu="(_c, _r, _e) => handleRightClick()"
+        :on-context-menu="handleContextMenu"
       />
     </div>
 

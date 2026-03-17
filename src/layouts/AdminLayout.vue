@@ -273,14 +273,15 @@ async function handleLogout() {
 }
 
 .brand-logo {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
 }
 
 .brand-title {
   font-weight: 700;
   font-size: 1rem;
+  color: var(--color-text-main);
 }
 
 

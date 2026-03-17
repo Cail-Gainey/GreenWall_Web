@@ -83,7 +83,7 @@ function goCommunity() {
       <div v-if="showBrand !== false" class="brand">
         <img :src="logoUrl" alt="logo" class="brand-logo" />
         <div class="brand-text">
-          <div class="brand-title">Green Wall</div>
+          <div class="brand-title">GreenWall</div>
         </div>
       </div>
       <slot name="left"></slot>
@@ -159,6 +159,8 @@ function goCommunity() {
 
 .brand-title {
   font-weight: 700;
+  font-size: 1rem;
+  color: var(--color-text-main);
 }
 
 </style>

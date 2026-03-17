@@ -34,6 +34,14 @@ const props = withDefaults(defineProps<{
 const containerRef = ref<HTMLElement | null>(null)
 const scale = ref(1)
 
+const handleCellContextMenu = (c: number, r: number, event: MouseEvent) => {
+  if (props.onCellContextMenu) {
+    props.onCellContextMenu(c, r, event)
+    return
+  }
+  props.onContextMenu?.(event)
+}
+
 const cols = computed(() => props.gridCols.length)
 
 const recalcScale = () => {
@@ -57,16 +65,29 @@ const recalcScale = () => {
 }
 
 let resizeObserver: ResizeObserver | null = null
+let contextMenuHandler: ((event: MouseEvent) => void) | null = null
 onMounted(() => {
   recalcScale()
   if (containerRef.value && 'ResizeObserver' in window) {
     resizeObserver = new ResizeObserver(() => recalcScale())
     resizeObserver.observe(containerRef.value)
   }
+
+  if (containerRef.value) {
+    contextMenuHandler = (event: MouseEvent) => {
+      event.preventDefault()
+      event.stopPropagation()
+      props.onContextMenu?.(event)
+    }
+    containerRef.value.addEventListener('contextmenu', contextMenuHandler, { capture: true })
+  }
 })
 
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
+  if (containerRef.value && contextMenuHandler) {
+    containerRef.value.removeEventListener('contextmenu', contextMenuHandler, { capture: true })
+  }
 })
 
 watch(cols, () => recalcScale())
@@ -76,8 +97,8 @@ watch(cols, () => recalcScale())
   <div
     class="graph-scroll-area"
     ref="containerRef"
-    @contextmenu.prevent="props.onContextMenu?.($event)"
-    @pointerdown="($event.button === 2) ? props.onContextMenu?.($event as any) : undefined"
+    @contextmenu.prevent.stop="props.onContextMenu?.($event)"
+    @pointerdown.prevent="($event.button === 2) ? props.onContextMenu?.($event as any) : undefined"
   >
     <div
       class="graph-scale"
@@ -120,7 +141,7 @@ watch(cols, () => recalcScale())
                 @pointerdown="cell.isFuture ? undefined : props.onCellPointerDown?.(c, r, $event)"
                 @pointerenter="cell.isFuture ? undefined : props.onCellPointerEnter?.(c, r)"
                 @click="cell.isFuture ? undefined : props.onCellClick?.(c, r)"
-                @contextmenu.prevent="props.onCellContextMenu?.(c, r, $event)"
+                @contextmenu.prevent.stop="handleCellContextMenu(c, r, $event)"
               ></div>
               <div v-else class="grid-cell ghost-cell"></div>
             </template>
