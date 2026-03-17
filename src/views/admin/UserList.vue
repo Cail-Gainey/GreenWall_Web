@@ -109,6 +109,8 @@ const statusOptions = [
   { label: '异常', value: '3' },
 ]
 
+const canEditEmail = computed(() => hasPermission('sys:user:edit:email'))
+
 const pageSizeOptions = [
   { label: '10 / 页', value: 10 },
   { label: '20 / 页', value: 20 },
@@ -341,6 +343,7 @@ async function submitForm() {
   const updatePayload: UserUpdateDto = {
     id: form.value.id,
     nickName: form.value.nickName || undefined,
+    email: canEditEmail.value ? form.value.email || undefined : undefined,
     phone: form.value.phone || undefined,
     sex: form.value.sex,
     status: form.value.status,
@@ -736,7 +739,11 @@ onMounted(async () => {
             <n-input v-model:value="form.nickName" placeholder="用户昵称" />
           </n-form-item>
           <n-form-item label="邮箱">
-            <n-input v-model:value="form.email" placeholder="邮箱地址" :disabled="formMode === 'edit'" />
+            <n-input
+              v-model:value="form.email"
+              placeholder="邮箱地址"
+              :disabled="formMode === 'edit' && !canEditEmail"
+            />
           </n-form-item>
           <n-form-item label="手机号">
             <n-input v-model:value="form.phone" placeholder="手机号" />
