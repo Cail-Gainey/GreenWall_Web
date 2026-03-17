@@ -170,7 +170,7 @@ function formatDate(value?: string) {
 }
 
 async function applySortUpdate(list: RoleDto[]) {
-  if (!hasPermission('sys:role:edit')) return
+  if (!hasPermission('sys:role:sort')) return
   const sortValues = list.map((r) => r.sort).sort((a, b) => a - b)
   const updates: RoleSortUpdateDto[] = list.map((role, idx) => ({
     id: role.id,
@@ -187,7 +187,7 @@ async function applySortUpdate(list: RoleDto[]) {
 }
 
 function handleDragStart(index: number, event: DragEvent) {
-  if (!hasPermission('sys:role:edit')) return
+  if (!hasPermission('sys:role:sort')) return
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData('text/plain', String(index))
@@ -727,7 +727,7 @@ onMounted(async () => {
         :loading="loading"
         :bordered="false"
         :row-props="(_, index) => ({
-          draggable: hasPermission('sys:role:edit'),
+          draggable: hasPermission('sys:role:sort'),
           onDragstart: (e: DragEvent) => handleDragStart(index, e),
           onDragover: (e: DragEvent) => handleDragOver(index, e),
           onDrop: () => handleDrop(index),

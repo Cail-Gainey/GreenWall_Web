@@ -384,6 +384,14 @@ export interface MenuUpdateDto extends MenuCreateDto {
 }
 
 /**
+ * @description 菜单排序更新请求。
+ */
+export interface MenuSortUpdateDto {
+  id: string
+  sort: number
+}
+
+/**
  * @description 给用户分配角色请求。
  */
 export interface AssignUserRolesDto {

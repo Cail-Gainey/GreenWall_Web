@@ -2,7 +2,7 @@
  * @file 菜单管理接口封装。
  */
 import request from './request'
-import type { ApiResult, MenuDto, MenuTreeDto, MenuCreateDto, MenuUpdateDto } from './types'
+import type { ApiResult, MenuDto, MenuTreeDto, MenuCreateDto, MenuUpdateDto, MenuSortUpdateDto } from './types'
 
 /**
  * @description 获取完整菜单树。
@@ -30,6 +30,13 @@ export function createMenu(data: MenuCreateDto) {
  */
 export function updateMenu(data: MenuUpdateDto) {
   return request.put<ApiResult<boolean>>('/Menu', data)
+}
+
+/**
+ * @description 更新菜单排序。
+ */
+export function updateMenuSort(data: MenuSortUpdateDto[]) {
+  return request.put<ApiResult<boolean>>('/Menu/sort', data)
 }
 
 /**
