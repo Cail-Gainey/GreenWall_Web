@@ -19,6 +19,13 @@ export function updateSystemConfig(data: SystemSettingsUpdateDto) {
 }
 
 /**
+ * @description 执行数据迁移。
+ */
+export function runSystemMigration() {
+  return request.post<ApiResult<boolean>>('/SystemConfig/migrate')
+}
+
+/**
  * @description 获取公共系统设置（无需登录）。
  */
 export function getPublicSystemConfig() {

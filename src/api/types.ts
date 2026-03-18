@@ -533,6 +533,8 @@ export interface SystemSettingsDto {
   forceOpsToken: boolean
   emailVerifyEnabled: boolean
   githubOAuthEnabled: boolean
+  dataMigrationLastTime?: string
+  autoDataMigrationOnStartup: boolean
 }
 
 /**
@@ -543,6 +545,7 @@ export interface SystemSettingsUpdateDto {
   forceOpsToken: boolean
   emailVerifyEnabled: boolean
   githubOAuthEnabled: boolean
+  autoDataMigrationOnStartup: boolean
 }
 
 /**
