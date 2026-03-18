@@ -38,6 +38,11 @@ request.interceptors.response.use(
     if (data.code !== 200) {
       return Promise.reject(new Error(data.msg || '请求失败'))
     }
+    const refreshedToken = response.headers?.['x-access-token']
+    if (refreshedToken) {
+      const permissionStore = usePermissionStore()
+      permissionStore.setToken(refreshedToken)
+    }
     return response
   },
   (error) => {
