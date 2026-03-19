@@ -37,6 +37,11 @@ const router = createRouter({
           path: 'community',
           name: 'community',
           component: () => import('../views/user/CommunityView.vue')
+        },
+        {
+          path: 'privacy',
+          name: 'privacy',
+          component: () => import('../views/user/PrivacyPolicy.vue')
         }
       ]
     },

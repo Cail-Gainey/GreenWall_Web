@@ -231,6 +231,7 @@ export interface RegisterDto {
   confirmPassword: string
   email: string
   code: string
+  privacyConsent: boolean
 }
 
 /**

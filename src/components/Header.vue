@@ -75,6 +75,11 @@ function goCommunity() {
   if (route.path.startsWith('/community')) return
   router.push('/community')
 }
+
+function goPrivacy() {
+  if (route.path.startsWith('/privacy')) return
+  router.push('/privacy')
+}
 </script>
 
 <template>
@@ -93,6 +98,7 @@ function goCommunity() {
       <n-button v-if="showCommunity !== false" quaternary size="small" @click="goCommunity">
         社区
       </n-button>
+      <n-button quaternary size="small" @click="goPrivacy">隐私条款</n-button>
       <n-button v-if="user && hasRole('admin')" quaternary size="small" @click="router.push('/admin')">
         管理后台
       </n-button>

@@ -3,7 +3,8 @@
  * @file 认证弹窗：Naive UI Tabs + Form.
  */
 import { ref, computed, onMounted } from 'vue'
-import { NModal, NCard, NTabs, NTabPane, NForm, NFormItem, NInput, NButton, NAlert, NSpace } from 'naive-ui'
+import { useRouter } from 'vue-router'
+import { NModal, NCard, NTabs, NTabPane, NForm, NFormItem, NInput, NButton, NAlert, NSpace, NCheckbox } from 'naive-ui'
 import { login, register, resetPassword, getMe } from '../api/auth'
 import { sendCode } from '../api/verifyCode'
 import { getPublicSystemConfig } from '../api/systemConfig'
@@ -39,6 +40,7 @@ const regPassword = ref('')
 const regConfirmPassword = ref('')
 const regEmail = ref('')
 const regCode = ref('')
+const regPrivacyConsent = ref(false)
 const regCaptchaId = ref('')
 const regCaptchaCode = ref('')
 const regCaptchaRef = ref<InstanceType<typeof CaptchaInput> | null>(null)
@@ -61,6 +63,12 @@ function showMsg(msg: string, error = false) {
 function clearMsg() {
   message.value = ''
   isError.value = false
+}
+
+const router = useRouter()
+
+function openPrivacy() {
+  router.push('/privacy')
 }
 
 
@@ -145,7 +153,8 @@ async function handleRegister() {
     regPassword.value.length < 6 ||
     regConfirmPassword.value !== regPassword.value ||
     !regEmail.value.includes('@') ||
-    (emailVerifyEnabled.value && regCode.value.length !== 6)
+    (emailVerifyEnabled.value && regCode.value.length !== 6) ||
+    !regPrivacyConsent.value
   ) return
   loading.value = true
   clearMsg()
@@ -155,7 +164,8 @@ async function handleRegister() {
       password: regPassword.value,
       confirmPassword: regConfirmPassword.value,
       email: regEmail.value,
-      code: regCode.value
+      code: regCode.value,
+      privacyConsent: regPrivacyConsent.value
     })
     permissionStore.setToken(res.data.data.token)
     const meRes = await getMe()
@@ -257,6 +267,12 @@ onMounted(async () => {
                 </n-button>
               </n-space>
             </n-form-item>
+            <n-form-item label="隐私条款">
+              <n-checkbox v-model:checked="regPrivacyConsent">
+                我已阅读并同意
+                <n-button text size="tiny" @click.stop="openPrivacy">隐私条款</n-button>
+              </n-checkbox>
+            </n-form-item>
             <n-space justify="space-between">
               <n-button secondary @click="emit('close')">取消</n-button>
               <n-button type="primary" :loading="loading" @click="handleRegister">注册</n-button>
@@ -305,4 +321,5 @@ onMounted(async () => {
 .mt-12 {
   margin-top: 12px;
 }
+
 </style>
