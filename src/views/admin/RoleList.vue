@@ -234,21 +234,6 @@ function getAllMenuKeys(nodes: MenuTreeDto[]) {
   return keys
 }
 
-function getLeafMenuKeys(nodes: MenuTreeDto[]) {
-  const keys: string[] = []
-  const walk = (list: MenuTreeDto[]) => {
-    list.forEach((node) => {
-      if (!node.children || node.children.length === 0) {
-        keys.push(node.id)
-      } else {
-        walk(node.children)
-      }
-    })
-  }
-  walk(nodes)
-  return keys
-}
-
 function expandAllMenus() {
   permExpandedKeys.value = getAllMenuKeys(menus.value)
 }
@@ -258,7 +243,7 @@ function collapseAllMenus() {
 }
 
 function selectAllMenus() {
-  permMenuIds.value = getLeafMenuKeys(menus.value)
+  permMenuIds.value = getAllMenuKeys(menus.value)
 }
 
 function clearMenuSelection() {
@@ -266,10 +251,10 @@ function clearMenuSelection() {
 }
 
 function invertMenuSelection() {
-  const leafKeys = new Set(getLeafMenuKeys(menus.value))
-  const current = new Set(permMenuIds.value.filter((key) => leafKeys.has(key)))
+  const allKeys = new Set(getAllMenuKeys(menus.value))
+  const current = new Set(permMenuIds.value.filter((key) => allKeys.has(key)))
   const next: string[] = []
-  leafKeys.forEach((key) => {
+  allKeys.forEach((key) => {
     if (!current.has(key)) next.push(key)
   })
   permMenuIds.value = next
@@ -752,7 +737,7 @@ onMounted(async () => {
           <n-form-item label="角色编码">
             <n-input
               v-model:value="form.roleCode"
-              :disabled="formMode === 'edit' && !hasPermission('sys:role:editcode')"
+              :disabled="formMode === 'edit' && !hasPermission('sys:role:edit:code')"
             />
           </n-form-item>
           <n-form-item label="状态">
@@ -803,7 +788,6 @@ onMounted(async () => {
         <n-tree
           block-line
           checkable
-          cascade
           expand-on-click
           :loading="permLoading"
           :data="menuTreeOptions"
