@@ -5,6 +5,8 @@ import request from './request'
 import type {
   ApiResult,
   PageResult,
+  PatternCommentCreateDto,
+  PatternCommentDto,
   PatternCreateDto,
   PatternDetailDto,
   PatternListItemDto,
@@ -92,4 +94,43 @@ export function favoritePattern(id: string) {
  */
 export function unfavoritePattern(id: string) {
   return request.delete<ApiResult<boolean>>(`/patterns/${id}/favorite`)
+}
+
+/**
+ * @description 获取图案评论列表。
+ * @param id 图案 ID
+ * @param params 分页参数
+ */
+export function getPatternComments(
+  id: string,
+  params: { pageIndex?: number; pageSize?: number; parentId?: string | number },
+) {
+  return request.get<ApiResult<PageResult<PatternCommentDto>>>(`/patterns/${id}/comments`, { params })
+}
+
+/**
+ * @description 发表评论。
+ * @param id 图案 ID
+ * @param data 评论内容
+ */
+export function createPatternComment(id: string, data: PatternCommentCreateDto) {
+  return request.post<ApiResult<string>>(`/patterns/${id}/comments`, data)
+}
+
+/**
+ * @description 点赞评论。
+ * @param id 图案 ID
+ * @param commentId 评论 ID
+ */
+export function likePatternComment(id: string, commentId: string) {
+  return request.post<ApiResult<boolean>>(`/patterns/${id}/comments/${commentId}/like`)
+}
+
+/**
+ * @description 取消点赞评论。
+ * @param id 图案 ID
+ * @param commentId 评论 ID
+ */
+export function unlikePatternComment(id: string, commentId: string) {
+  return request.delete<ApiResult<boolean>>(`/patterns/${id}/comments/${commentId}/like`)
 }

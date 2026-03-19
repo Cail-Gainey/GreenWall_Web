@@ -441,6 +441,7 @@ export interface PatternListItemDto {
   viewCount: number
   likeCount: number
   favoriteCount: number
+  commentCount: number
   creatorName: string
   creatorAvatar?: string
   createTime: string
@@ -453,6 +454,32 @@ export interface PatternListItemDto {
  */
 export interface PatternDetailDto extends PatternListItemDto {
   creatorId: string
+}
+
+// ========== 图案评论 ==========
+
+export interface PatternCommentCreateDto {
+  content: string
+  parentId?: string | number
+  replyToUserId?: string | number
+}
+
+export interface PatternCommentDto {
+  id: string
+  patternId: string
+  parentId: string
+  replyToUserId?: string
+  replyToUserName?: string
+  userId: string
+  userName: string
+  userAvatar?: string
+  content: string
+  likeCount: number
+  createTime: string
+  isOwner: boolean
+  isLiked: boolean
+  replyCount: number
+  replies?: PatternCommentDto[]
 }
 
 /**

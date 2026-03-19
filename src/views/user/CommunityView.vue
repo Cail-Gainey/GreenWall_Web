@@ -5,10 +5,14 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
+  NAvatar,
   NButton,
   NCard,
+  NDivider,
   NGrid,
   NGridItem,
+  NIcon,
+  NInput,
   NPagination,
   NSelect,
   NTag,
@@ -21,23 +25,43 @@ import {
   useMessage,
 } from 'naive-ui'
 import {
+  CloudUpload,
+  Chat,
+  Download,
+  Edit,
+  Favorite,
+  FavoriteFilled,
+  Send,
+  TrashCan,
+  ThumbsUp,
+  ThumbsUpFilled,
+  User,
+  View,
+} from '@vicons/carbon'
+import {
   getCommunityPatterns,
   getPatternDetail,
   likePattern,
   unlikePattern,
   favoritePattern,
   unfavoritePattern,
+  getPatternComments,
+  createPatternComment,
+  likePatternComment,
+  unlikePatternComment,
   createPattern,
   updatePattern,
   deletePattern,
   type PatternSort,
 } from '../../api/patternCommunity'
-import type { PatternDetailDto, PatternListItemDto, PatternCellDto } from '../../api/types'
+import type { PatternDetailDto, PatternListItemDto, PatternCellDto, PatternCommentDto } from '../../api/types'
 import { usePermissionStore } from '../../stores/permission'
 import { usePatternImportStore } from '../../stores/patternImport'
 import PatternEditorModal from '../../components/PatternEditorModal.vue'
 import GraphTableTemplate from '../../components/GraphTableTemplate.vue'
 import { calcTotalCols, getYearMeta, isFutureCell } from '../../utils/graph'
+import { TimeFormatter } from '../../utils/time'
+import userAvatarFallback from '../../assets/user.png'
 
 const router = useRouter()
 const dialog = useDialog()
@@ -62,6 +86,27 @@ const patterns = ref<PatternListItemDto[]>([])
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detail = ref<PatternDetailDto | null>(null)
+const comments = ref<PatternCommentDto[]>([])
+const commentPageIndex = ref(1)
+const commentPageSize = 8
+const commentTotal = ref(0)
+const commentLoading = ref(false)
+const commentSubmitting = ref(false)
+const commentContent = ref('')
+const commentScrollRef = ref<HTMLElement | null>(null)
+const replySubmitting = ref(false)
+const replyContent = ref('')
+const activeReplyParentId = ref<string | null>(null)
+const activeReplyToUserId = ref<string | null>(null)
+const activeReplyToUserName = ref<string | null>(null)
+const replyPageSize = 6
+const replyStates = ref<Record<string, {
+  visible: boolean
+  loading: boolean
+  items: PatternCommentDto[]
+  pageIndex: number
+  total: number
+}>>({})
 const editVisible = ref(false)
 const editTitle = ref('')
 const editDesc = ref('')
@@ -79,6 +124,7 @@ const canPublish = computed(() => permissionStore.hasPermission('app:community:p
 const canLike = computed(() => permissionStore.hasPermission('app:community:like'))
 const canFavorite = computed(() => permissionStore.hasPermission('app:community:favorite'))
 const canImport = computed(() => permissionStore.hasPermission('app:community:import'))
+const canComment = computed(() => permissionStore.hasPermission('app:community:comment'))
 const canEdit = computed(() => permissionStore.hasPermission('app:community:edit'))
 const canDelete = computed(() => permissionStore.hasPermission('app:community:delete'))
 const showPublish = computed(() => !isLoggedIn.value || canPublish.value)
@@ -86,6 +132,20 @@ const showLike = computed(() => !isLoggedIn.value || canLike.value)
 const showFavorite = computed(() => !isLoggedIn.value || canFavorite.value)
 const showImport = computed(() => !isLoggedIn.value || canImport.value)
 const loginHint = computed(() => (isLoggedIn.value ? '' : '请先登录'))
+const hasMoreComments = computed(() => comments.value.length < commentTotal.value)
+
+const getReplyState = (parentId: string) => {
+  if (!replyStates.value[parentId]) {
+    replyStates.value[parentId] = {
+      visible: false,
+      loading: false,
+      items: [],
+      pageIndex: 1,
+      total: 0,
+    }
+  }
+  return replyStates.value[parentId]
+}
 
 const sortOptions = [
   { label: '浏览量', value: 'view' },
@@ -151,13 +211,230 @@ const openDetail = async (item: PatternListItemDto) => {
       patterns.value[idx].viewCount = detail.value.viewCount
       patterns.value[idx].likeCount = detail.value.likeCount
       patterns.value[idx].favoriteCount = detail.value.favoriteCount
+      patterns.value[idx].commentCount = detail.value.commentCount
       patterns.value[idx].isLiked = detail.value.isLiked
       patterns.value[idx].isFavorited = detail.value.isFavorited
     }
+    await loadComments(true)
   } catch (e: any) {
     message.error(e?.message || '加载详情失败')
   } finally {
     detailLoading.value = false
+  }
+}
+
+const loadComments = async (reset = false) => {
+  if (!detail.value) return
+  if (reset) {
+    commentPageIndex.value = 1
+    comments.value = []
+    replyStates.value = {}
+    activeReplyParentId.value = null
+    activeReplyToUserId.value = null
+    activeReplyToUserName.value = null
+    replyContent.value = ''
+  }
+  commentLoading.value = true
+  try {
+    const res = await getPatternComments(detail.value.id, {
+      parentId: 0,
+      pageIndex: commentPageIndex.value,
+      pageSize: commentPageSize,
+    })
+    const data = res.data.data
+    commentTotal.value = Number(data.total || 0)
+    const items = data.items || []
+    comments.value = reset ? items : [...comments.value, ...items]
+    if (reset) {
+      await nextTick()
+      if (commentScrollRef.value) {
+        commentScrollRef.value.scrollTop = 0
+      }
+    }
+  } catch (e: any) {
+    message.error(e?.message || '加载评论失败')
+  } finally {
+    commentLoading.value = false
+  }
+}
+
+const loadMoreComments = async () => {
+  if (commentLoading.value || !hasMoreComments.value) return
+  commentPageIndex.value += 1
+  await loadComments(false)
+}
+
+const loadReplies = async (parentId: string, reset = false) => {
+  if (!detail.value) return
+  const state = getReplyState(parentId)
+  if (reset) {
+    state.pageIndex = 1
+    state.items = []
+  }
+  state.loading = true
+  try {
+    const res = await getPatternComments(detail.value.id, {
+      parentId,
+      pageIndex: state.pageIndex,
+      pageSize: replyPageSize,
+    })
+    const data = res.data.data
+    state.total = Number(data.total || 0)
+    const items = data.items || []
+    state.items = reset ? items : [...state.items, ...items]
+  } catch (e: any) {
+    message.error(e?.message || '加载回复失败')
+  } finally {
+    state.loading = false
+  }
+}
+
+const toggleReplies = async (item: PatternCommentDto) => {
+  const state = getReplyState(item.id)
+  state.visible = !state.visible
+  if (state.visible && state.items.length === 0 && item.replyCount > 0) {
+    await loadReplies(item.id, true)
+  }
+}
+
+const loadMoreReplies = async (parentId: string) => {
+  const state = getReplyState(parentId)
+  if (state.loading || state.items.length >= state.total) return
+  state.pageIndex += 1
+  await loadReplies(parentId)
+}
+
+const handleCommentScroll = () => {
+  const el = commentScrollRef.value
+  if (!el || commentLoading.value || !hasMoreComments.value) return
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 80) {
+    loadMoreComments()
+  }
+}
+
+const submitComment = async () => {
+  if (!detail.value) return
+  if (!isLoggedIn.value) {
+    message.warning('请先登录后再操作')
+    return
+  }
+  if (!canComment.value) {
+    message.warning('当前账号无评论权限')
+    return
+  }
+  const content = commentContent.value.trim()
+  if (!content) {
+    message.warning('请输入评论内容')
+    return
+  }
+  try {
+    commentSubmitting.value = true
+    await createPatternComment(detail.value.id, { content })
+    commentContent.value = ''
+    detail.value.commentCount += 1
+    const idx = patterns.value.findIndex((p) => p.id === detail.value?.id)
+    if (idx >= 0) {
+      patterns.value[idx].commentCount = detail.value.commentCount
+    }
+    await loadComments(true)
+    message.success('已发表评论')
+  } catch (e: any) {
+    message.error(e?.message || '发表评论失败')
+  } finally {
+    commentSubmitting.value = false
+  }
+}
+
+const showReplyInput = (parentId: string, replyToUserId?: string, replyToUserName?: string) => {
+  if (!isLoggedIn.value) {
+    message.warning('请先登录后再操作')
+    return
+  }
+  if (!canComment.value) {
+    message.warning('当前账号无评论权限')
+    return
+  }
+  activeReplyParentId.value = parentId
+  activeReplyToUserId.value = replyToUserId ?? null
+  activeReplyToUserName.value = replyToUserName ?? null
+  replyContent.value = ''
+}
+
+const cancelReply = () => {
+  activeReplyParentId.value = null
+  activeReplyToUserId.value = null
+  activeReplyToUserName.value = null
+  replyContent.value = ''
+}
+
+const submitReply = async (parentId: string) => {
+  if (!detail.value) return
+  if (!isLoggedIn.value) {
+    message.warning('请先登录后再操作')
+    return
+  }
+  if (!canComment.value) {
+    message.warning('当前账号无评论权限')
+    return
+  }
+  const content = replyContent.value.trim()
+  if (!content) {
+    message.warning('请输入回复内容')
+    return
+  }
+  try {
+    replySubmitting.value = true
+    await createPatternComment(detail.value.id, {
+      content,
+      parentId,
+      replyToUserId: activeReplyToUserId.value ?? undefined,
+    })
+    replyContent.value = ''
+    detail.value.commentCount += 1
+    const idx = patterns.value.findIndex((p) => p.id === detail.value?.id)
+    if (idx >= 0) {
+      patterns.value[idx].commentCount = detail.value.commentCount
+    }
+    const parent = comments.value.find((c) => c.id === parentId)
+    if (parent) {
+      parent.replyCount += 1
+    }
+    const state = getReplyState(parentId)
+    state.visible = true
+    await loadReplies(parentId, true)
+    activeReplyParentId.value = null
+    activeReplyToUserId.value = null
+    activeReplyToUserName.value = null
+    message.success('已回复')
+  } catch (e: any) {
+    message.error(e?.message || '回复失败')
+  } finally {
+    replySubmitting.value = false
+  }
+}
+
+const toggleCommentLike = async (item: PatternCommentDto) => {
+  if (!detail.value) return
+  if (!isLoggedIn.value) {
+    message.warning('请先登录后再操作')
+    return
+  }
+  if (!canComment.value) {
+    message.warning('当前账号无评论权限')
+    return
+  }
+  try {
+    if (item.isLiked) {
+      await unlikePatternComment(detail.value.id, item.id)
+      item.isLiked = false
+      item.likeCount = Math.max(0, item.likeCount - 1)
+    } else {
+      await likePatternComment(detail.value.id, item.id)
+      item.isLiked = true
+      item.likeCount += 1
+    }
+  } catch (e: any) {
+    message.error(e?.message || '操作失败')
   }
 }
 
@@ -288,6 +565,23 @@ const buildCellsFromGrid = (grid: number[][]) => {
   return cells
 }
 
+const resolveAvatar = (avatar?: string) => {
+  const src = avatar?.trim()
+  if (!src) return userAvatarFallback
+  if (src.startsWith('http://') || src.startsWith('https://')) {
+    try {
+      const url = new URL(src)
+      if (url.hostname === 'oss.whisperlink.icu') {
+        const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8888/api'
+        const safeBase = apiBase.endsWith('/') ? apiBase.slice(0, -1) : apiBase
+        return `${safeBase}/proxy/avatar?url=${encodeURIComponent(src)}`
+      }
+    } catch {
+      return src
+    }
+  }
+  return src
+}
 
 const openEditModal = async () => {
   if (!detail.value) return
@@ -441,6 +735,15 @@ watch(yearFilter, () => {
 
 watch([sort, yearFilter, pageIndex, pageSize], loadPatterns)
 
+watch(detailVisible, (value) => {
+  if (!value) {
+    comments.value = []
+    commentTotal.value = 0
+    commentContent.value = ''
+    commentPageIndex.value = 1
+  }
+})
+
 onMounted(loadPatterns)
 </script>
 
@@ -455,7 +758,11 @@ onMounted(loadPatterns)
         <n-tooltip v-if="showPublish" trigger="hover">
           <template #trigger>
             <span class="tooltip-wrapper">
-              <n-button type="primary" size="small" :disabled="!isLoggedIn" @click="goPublish">发布图案</n-button>
+              <n-button type="primary" size="small" circle :disabled="!isLoggedIn" @click="goPublish">
+                <n-icon size="16">
+                  <CloudUpload />
+                </n-icon>
+              </n-button>
             </span>
           </template>
           {{ loginHint || '发布图案' }}
@@ -490,10 +797,46 @@ onMounted(loadPatterns)
                 :auto-scale="true"
               />
             </div>
+            <div class="card-author">
+              <n-avatar
+                size="small"
+                round
+                :src="resolveAvatar(item.creatorAvatar)"
+                :fallback-src="userAvatarFallback"
+                :img-props="{ referrerpolicy: 'no-referrer' }"
+              >
+                <n-icon size="14">
+                  <User />
+                </n-icon>
+              </n-avatar>
+              <span class="author-name">{{ item.creatorName }}</span>
+              <span class="author-date">{{ TimeFormatter.formatDate(item.createTime) }}</span>
+            </div>
             <div class="card-meta">
-              <span>浏览 {{ item.viewCount }}</span>
-              <span>点赞 {{ item.likeCount }}</span>
-              <span>收藏 {{ item.favoriteCount }}</span>
+              <span class="meta-item">
+                <n-icon size="14">
+                  <View />
+                </n-icon>
+                {{ item.viewCount }}
+              </span>
+              <span class="meta-item">
+                <n-icon size="14">
+                  <ThumbsUp />
+                </n-icon>
+                {{ item.likeCount }}
+              </span>
+              <span class="meta-item">
+                <n-icon size="14">
+                  <Favorite />
+                </n-icon>
+                {{ item.favoriteCount }}
+              </span>
+              <span class="meta-item">
+                <n-icon size="14">
+                  <Chat />
+                </n-icon>
+                {{ item.commentCount }}
+              </span>
             </div>
             <div class="card-actions" @click.stop>
               <n-tooltip v-if="showLike" trigger="hover">
@@ -502,11 +845,15 @@ onMounted(loadPatterns)
                     <n-button
                       size="small"
                       secondary
+                      circle
                       :disabled="!isLoggedIn"
                       :type="item.isLiked ? 'success' : 'default'"
                       @click="toggleLike(item)"
                     >
-                      {{ item.isLiked ? '已点赞' : '点赞' }}
+                      <n-icon size="16">
+                        <ThumbsUpFilled v-if="item.isLiked" />
+                        <ThumbsUp v-else />
+                      </n-icon>
                     </n-button>
                   </span>
                 </template>
@@ -518,11 +865,15 @@ onMounted(loadPatterns)
                     <n-button
                       size="small"
                       secondary
+                      circle
                       :disabled="!isLoggedIn"
                       :type="item.isFavorited ? 'warning' : 'default'"
                       @click="toggleFavorite(item)"
                     >
-                      {{ item.isFavorited ? '已收藏' : '收藏' }}
+                      <n-icon size="16">
+                        <FavoriteFilled v-if="item.isFavorited" />
+                        <Favorite v-else />
+                      </n-icon>
                     </n-button>
                   </span>
                 </template>
@@ -531,7 +882,11 @@ onMounted(loadPatterns)
               <n-tooltip v-if="showImport" trigger="hover">
                 <template #trigger>
                   <span class="tooltip-wrapper">
-                    <n-button size="small" type="primary" :disabled="!isLoggedIn" @click="confirmImport(item)">一键导入</n-button>
+                    <n-button size="small" type="primary" circle :disabled="!isLoggedIn" @click="confirmImport(item)">
+                      <n-icon size="16">
+                        <Download />
+                      </n-icon>
+                    </n-button>
                   </span>
                 </template>
                 {{ loginHint || '一键导入' }}
@@ -573,10 +928,36 @@ onMounted(loadPatterns)
             />
           </div>
           <div class="detail-meta">
-            <span>创建者：{{ detail.creatorName }}</span>
-            <span>浏览 {{ detail.viewCount }}</span>
-            <span>点赞 {{ detail.likeCount }}</span>
-            <span>收藏 {{ detail.favoriteCount }}</span>
+            <span class="meta-item">
+              <n-icon size="14">
+                <User />
+              </n-icon>
+              {{ detail.creatorName }}
+            </span>
+            <span class="meta-item">
+              <n-icon size="14">
+                <View />
+              </n-icon>
+              {{ detail.viewCount }}
+            </span>
+            <span class="meta-item">
+              <n-icon size="14">
+                <ThumbsUp />
+              </n-icon>
+              {{ detail.likeCount }}
+            </span>
+            <span class="meta-item">
+              <n-icon size="14">
+                <Favorite />
+              </n-icon>
+              {{ detail.favoriteCount }}
+            </span>
+            <span class="meta-item">
+              <n-icon size="14">
+                <Chat />
+              </n-icon>
+              {{ detail.commentCount }}
+            </span>
           </div>
           <div class="detail-actions">
             <n-tooltip v-if="showLike" trigger="hover">
@@ -585,11 +966,15 @@ onMounted(loadPatterns)
                   <n-button
                     size="small"
                     secondary
+                    circle
                     :disabled="!isLoggedIn"
                     :type="detail.isLiked ? 'success' : 'default'"
                     @click="toggleLike(detail)"
                   >
-                    {{ detail.isLiked ? '已点赞' : '点赞' }}
+                    <n-icon size="16">
+                      <ThumbsUpFilled v-if="detail.isLiked" />
+                      <ThumbsUp v-else />
+                    </n-icon>
                   </n-button>
                 </span>
               </template>
@@ -601,11 +986,15 @@ onMounted(loadPatterns)
                   <n-button
                     size="small"
                     secondary
+                    circle
                     :disabled="!isLoggedIn"
                     :type="detail.isFavorited ? 'warning' : 'default'"
                     @click="toggleFavorite(detail)"
                   >
-                    {{ detail.isFavorited ? '已收藏' : '收藏' }}
+                    <n-icon size="16">
+                      <FavoriteFilled v-if="detail.isFavorited" />
+                      <Favorite v-else />
+                    </n-icon>
                   </n-button>
                 </span>
               </template>
@@ -614,15 +1003,241 @@ onMounted(loadPatterns)
             <n-tooltip v-if="showImport" trigger="hover">
               <template #trigger>
                 <span class="tooltip-wrapper">
-                  <n-button size="small" type="primary" :disabled="!isLoggedIn" @click="confirmImport(detail)">一键导入</n-button>
+                  <n-button size="small" type="primary" circle :disabled="!isLoggedIn" @click="confirmImport(detail)">
+                    <n-icon size="16">
+                      <Download />
+                    </n-icon>
+                  </n-button>
                 </span>
               </template>
               {{ loginHint || '一键导入' }}
             </n-tooltip>
             <template v-if="canManageDetail">
-              <n-button v-if="canEdit" size="small" @click="openEditModal">编辑图案</n-button>
-              <n-button v-if="canDelete" size="small" type="error" ghost @click="removePattern">删除</n-button>
+              <n-tooltip v-if="canEdit" trigger="hover">
+                <template #trigger>
+                  <span class="tooltip-wrapper">
+                    <n-button size="small" circle @click="openEditModal">
+                      <n-icon size="16">
+                        <Edit />
+                      </n-icon>
+                    </n-button>
+                  </span>
+                </template>
+                编辑图案
+              </n-tooltip>
+              <n-tooltip v-if="canDelete" trigger="hover">
+                <template #trigger>
+                  <span class="tooltip-wrapper">
+                    <n-button size="small" circle type="error" ghost @click="removePattern">
+                      <n-icon size="16">
+                        <TrashCan />
+                      </n-icon>
+                    </n-button>
+                  </span>
+                </template>
+                删除
+              </n-tooltip>
             </template>
+          </div>
+
+          <n-divider />
+
+          <div class="comment-section">
+            <div class="comment-header">
+              <n-icon size="16">
+                <Chat />
+              </n-icon>
+              评论 {{ detail.commentCount }}
+            </div>
+            <div class="comment-input">
+              <n-input
+                v-model:value="commentContent"
+                type="textarea"
+                :autosize="{ minRows: 2, maxRows: 4 }"
+                placeholder="写下你的评论..."
+                :disabled="!isLoggedIn || !canComment"
+              />
+              <n-tooltip trigger="hover">
+                <template #trigger>
+                  <span class="tooltip-wrapper">
+                    <n-button
+                      type="primary"
+                      circle
+                      :loading="commentSubmitting"
+                      :disabled="!isLoggedIn || !canComment || commentSubmitting"
+                      @click="submitComment"
+                    >
+                      <n-icon size="16">
+                        <Send />
+                      </n-icon>
+                    </n-button>
+                  </span>
+                </template>
+                发表评论
+              </n-tooltip>
+            </div>
+            <div v-if="!isLoggedIn" class="comment-hint">请先登录后发表评论</div>
+            <div v-else-if="!canComment" class="comment-hint">当前账号无评论权限</div>
+
+            <n-spin :show="commentLoading">
+              <div v-if="comments.length === 0 && !commentLoading" class="comment-empty">暂无评论</div>
+              <div v-else class="comment-list-wrap" ref="commentScrollRef" @scroll="handleCommentScroll">
+                <div class="comment-list">
+                  <div v-for="item in comments" :key="item.id" class="comment-item">
+                    <n-avatar
+                      size="small"
+                      round
+                      :src="resolveAvatar(item.userAvatar)"
+                      :fallback-src="userAvatarFallback"
+                      :img-props="{ referrerpolicy: 'no-referrer' }"
+                    >
+                      <n-icon size="14">
+                        <User />
+                      </n-icon>
+                    </n-avatar>
+                    <div class="comment-body">
+                      <div class="comment-meta">
+                        <span class="comment-author">{{ item.userName }}</span>
+                        <span class="comment-time">{{ TimeFormatter.formatDateTime(item.createTime) }}</span>
+                      </div>
+                      <div class="comment-content">{{ item.content }}</div>
+                      <div class="comment-actions">
+                        <n-button
+                          quaternary
+                          size="tiny"
+                          :type="item.isLiked ? 'primary' : 'default'"
+                          :disabled="!isLoggedIn || !canComment"
+                          @click="toggleCommentLike(item)"
+                        >
+                          <template #icon>
+                            <n-icon size="14">
+                              <ThumbsUpFilled v-if="item.isLiked" />
+                              <ThumbsUp v-else />
+                            </n-icon>
+                          </template>
+                          {{ item.likeCount }}
+                        </n-button>
+                        <n-button
+                          quaternary
+                          size="tiny"
+                          :disabled="!isLoggedIn || !canComment"
+                          @click="showReplyInput(item.id, item.userId, item.userName)"
+                        >
+                          回复
+                        </n-button>
+                        <n-button
+                          v-if="item.replyCount > 0"
+                          text
+                          size="tiny"
+                          @click="toggleReplies(item)"
+                        >
+                          {{ getReplyState(item.id).visible ? '收起回复' : `查看 ${item.replyCount} 条回复` }}
+                        </n-button>
+                      </div>
+                      <div v-if="activeReplyParentId === item.id" class="reply-input">
+                        <n-input
+                          v-model:value="replyContent"
+                          type="textarea"
+                          :autosize="{ minRows: 2, maxRows: 3 }"
+                          :placeholder="activeReplyToUserName ? `回复 @${activeReplyToUserName}` : '写下你的回复...'"
+                          :disabled="replySubmitting"
+                        />
+                        <div class="reply-actions">
+                          <n-button size="tiny" @click="cancelReply">取消</n-button>
+                          <n-button
+                            type="primary"
+                            size="tiny"
+                            :loading="replySubmitting"
+                            :disabled="replySubmitting"
+                            @click="submitReply(item.id)"
+                          >
+                            发送
+                          </n-button>
+                        </div>
+                      </div>
+                      <div v-if="getReplyState(item.id).visible" class="reply-list">
+                        <n-spin :show="getReplyState(item.id).loading">
+                          <div
+                            v-if="getReplyState(item.id).items.length === 0 && !getReplyState(item.id).loading"
+                            class="reply-empty"
+                          >
+                            暂无回复
+                          </div>
+                          <div v-else class="reply-items">
+                            <div v-for="reply in getReplyState(item.id).items" :key="reply.id" class="reply-item">
+                              <n-avatar
+                                size="small"
+                                round
+                                :src="resolveAvatar(reply.userAvatar)"
+                                :fallback-src="userAvatarFallback"
+                                :img-props="{ referrerpolicy: 'no-referrer' }"
+                              >
+                                <n-icon size="14">
+                                  <User />
+                                </n-icon>
+                              </n-avatar>
+                              <div class="reply-body">
+                                <div class="comment-meta">
+                                  <span class="comment-author">{{ reply.userName }}</span>
+                                  <span class="comment-time">{{ TimeFormatter.formatDateTime(reply.createTime) }}</span>
+                                </div>
+                                <div class="comment-content">
+                                  <span v-if="reply.replyToUserName" class="reply-to">
+                                    回复 @{{ reply.replyToUserName }}：
+                                  </span>
+                                  {{ reply.content }}
+                                </div>
+                                <div class="comment-actions">
+                                  <n-button
+                                    quaternary
+                                    size="tiny"
+                                    :type="reply.isLiked ? 'primary' : 'default'"
+                                    :disabled="!isLoggedIn || !canComment"
+                                    @click="toggleCommentLike(reply)"
+                                  >
+                                    <template #icon>
+                                      <n-icon size="14">
+                                        <ThumbsUpFilled v-if="reply.isLiked" />
+                                        <ThumbsUp v-else />
+                                      </n-icon>
+                                    </template>
+                                    {{ reply.likeCount }}
+                                  </n-button>
+                                  <n-button
+                                    quaternary
+                                    size="tiny"
+                                    :disabled="!isLoggedIn || !canComment"
+                                    @click="showReplyInput(item.id, reply.userId, reply.userName)"
+                                  >
+                                    回复
+                                  </n-button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div v-if="getReplyState(item.id).items.length > 0" class="reply-load">
+                            <span v-if="getReplyState(item.id).loading">加载中...</span>
+                            <span
+                              v-else-if="getReplyState(item.id).items.length < getReplyState(item.id).total"
+                              class="reply-more"
+                              @click="loadMoreReplies(item.id)"
+                            >
+                              加载更多回复
+                            </span>
+                            <span v-else>已加载全部</span>
+                          </div>
+                        </n-spin>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="comment-load">
+                  <span v-if="commentLoading">加载中...</span>
+                  <span v-else-if="hasMoreComments">下拉加载更多</span>
+                  <span v-else>已加载全部</span>
+                </div>
+              </div>
+            </n-spin>
           </div>
         </div>
       </n-spin>
@@ -706,6 +1321,24 @@ onMounted(loadPatterns)
   margin-bottom: 12px;
 }
 
+.card-author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-bottom: 10px;
+}
+
+.author-name {
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.author-date {
+  margin-left: auto;
+}
+
 .pattern-preview {
   padding: 10px;
   border-radius: 12px;
@@ -726,8 +1359,15 @@ onMounted(loadPatterns)
   font-size: 12px;
   color: var(--color-text-muted);
   display: flex;
+  align-items: center;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .card-actions {
@@ -778,6 +1418,160 @@ onMounted(loadPatterns)
 .detail-actions {
   display: flex;
   gap: 8px;
+}
+
+.comment-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.comment-input {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.comment-input .n-input {
+  flex: 1;
+}
+
+.comment-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.comment-empty {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comment-list-wrap {
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.comment-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.comment-body {
+  flex: 1;
+}
+
+.comment-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+
+.comment-author {
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.comment-content {
+  font-size: 13px;
+  color: var(--color-text-main);
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.reply-input {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--color-bg-light);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reply-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.reply-list {
+  margin-top: 8px;
+  padding-left: 36px;
+  border-left: 1px dashed var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reply-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reply-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.reply-body {
+  flex: 1;
+}
+
+.reply-to {
+  color: var(--color-text-muted);
+  margin-right: 4px;
+}
+
+.reply-load {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: 6px 0 2px;
+}
+
+.reply-more {
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.reply-empty {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.comment-load {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: 8px 0 4px;
 }
 
 

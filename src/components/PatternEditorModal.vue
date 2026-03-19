@@ -3,12 +3,12 @@
  * @file 图案编辑弹窗模板：表单 + 工具栏 + 图案悬浮预览。
  */
 import { computed, onMounted, ref, watch } from 'vue'
-import { NModal, NInput, NButton, NSelect, NIcon } from 'naive-ui'
+import { NModal, NInput, NButton, NSelect, NIcon, NTooltip } from 'naive-ui'
 import ToolbarTemplate from './ToolbarTemplate.vue'
 import PatternDialog from './PatternDialog.vue'
 import GraphTableTemplate, { type GraphCell } from './GraphTableTemplate.vue'
 import { calcTotalCols, getYearMeta, isFutureCell } from '../utils/graph'
-import { ChevronLeft, ChevronRight } from '@vicons/carbon'
+import { ChevronLeft, ChevronRight, Close, Checkmark } from '@vicons/carbon'
 
 const props = withDefaults(
   defineProps<{
@@ -403,10 +403,30 @@ watch(activeTool, () => {
       />
     </div>
     <div class="actions">
-      <n-button secondary @click="emit('update:show', false)">取消</n-button>
-      <n-button type="primary" :loading="submitLoading" @click="emit('submit')">
+      <n-tooltip trigger="hover">
+        <template #trigger>
+          <span class="tooltip-wrapper">
+            <n-button secondary circle @click="emit('update:show', false)">
+              <n-icon size="16">
+                <Close />
+              </n-icon>
+            </n-button>
+          </span>
+        </template>
+        取消
+      </n-tooltip>
+      <n-tooltip trigger="hover">
+        <template #trigger>
+          <span class="tooltip-wrapper">
+            <n-button type="primary" circle :loading="submitLoading" @click="emit('submit')">
+              <n-icon size="16">
+                <Checkmark />
+              </n-icon>
+            </n-button>
+          </span>
+        </template>
         {{ submitText }}
-      </n-button>
+      </n-tooltip>
     </div>
     <PatternDialog v-model:show="showPatternDialog" @select="handlePatternSelect" />
   </n-modal>
@@ -448,5 +468,9 @@ watch(activeTool, () => {
   justify-content: flex-end;
   gap: 12px;
   margin-top: 8px;
+}
+
+.tooltip-wrapper {
+  display: inline-flex;
 }
 </style>
