@@ -86,6 +86,12 @@ const router = createRouter({
           meta: { permission: 'sys:monitor:view', title: '系统监控' }
         },
         {
+          path: 'ops-tokens',
+          name: 'admin-ops-tokens',
+          component: () => import('../views/admin/OpsTokenView.vue'),
+          meta: { permission: 'sys:ops:token:list', title: '令牌管理' }
+        },
+        {
           path: 'settings',
           name: 'admin-settings',
           component: () => import('../views/admin/SystemSettingsView.vue'),

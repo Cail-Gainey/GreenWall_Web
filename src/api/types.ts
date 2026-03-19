@@ -544,6 +544,7 @@ export interface SystemSettingsDto {
 export interface SystemSettingsUpdateDto {
   allowRegister: boolean
   forceOpsToken: boolean
+  opsToken?: string
   emailVerifyEnabled: boolean
   githubOAuthEnabled: boolean
   autoDataMigrationOnStartup: boolean
@@ -556,6 +557,43 @@ export interface SystemPublicSettingsDto {
   allowRegister: boolean
   emailVerifyEnabled: boolean
   githubOAuthEnabled: boolean
+}
+
+// ========== 运维令牌 ==========
+
+export interface OpsTokenQueryDto {
+  pageIndex?: number
+  pageSize?: number
+  keyword?: string
+  status?: number
+}
+
+export interface OpsTokenDto {
+  id: string
+  tokenName: string
+  status: number
+  remark?: string
+  lastUsedTime?: string
+  lastUsedByName?: string
+  createUserName?: string
+  updateUserName?: string
+  createTime: string
+  updateTime?: string
+}
+
+export interface OpsTokenCreateDto {
+  tokenName: string
+  token: string
+  status: number
+  remark?: string
+}
+
+export interface OpsTokenUpdateDto {
+  id: string
+  tokenName: string
+  token?: string
+  status: number
+  remark?: string
 }
 
 // ========== 日志管理 ==========

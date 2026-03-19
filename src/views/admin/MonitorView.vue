@@ -22,6 +22,7 @@ const canMySqlRestart = computed(() => permissionStore.hasPermission('sys:monito
 const canRedisRestart = computed(() => permissionStore.hasPermission('sys:monitor:redis:restart'))
 const canRedisFlush = computed(() => permissionStore.hasPermission('sys:monitor:redis:flush'))
 const canCacheClear = computed(() => permissionStore.hasPermission('sys:monitor:cache:clear'))
+const canOpsToken = computed(() => permissionStore.hasPermission('sys:monitor:ops-token'))
 const opsToken = ref(localStorage.getItem('ops_token') || '')
 const showMySqlDetail = ref(false)
 const showRedisDetail = ref(false)
@@ -137,14 +138,16 @@ const confirmOp = (title: string, action: (token?: string) => Promise<any>) => {
     content: () =>
       h('div', { style: 'display:flex; flex-direction:column; gap:10px;' }, [
         h('div', { style: 'font-size:12px; color: var(--color-text-muted);' }, '该操作将立即生效，请谨慎执行。'),
-        h(NInput, {
-          value: tempToken,
-          placeholder: '运维令牌(可选)',
-          size: 'small',
-          onUpdateValue: (value: string) => {
-            tempToken = value
-          },
-        }),
+        canOpsToken.value
+          ? h(NInput, {
+              value: tempToken,
+              placeholder: '运维令牌(可选)',
+              size: 'small',
+              onUpdateValue: (value: string) => {
+                tempToken = value
+              },
+            })
+          : null,
       ]),
     onPositiveClick: async () => {
       saveToken(tempToken || '')
@@ -174,7 +177,7 @@ const confirmOp = (title: string, action: (token?: string) => Promise<any>) => {
         </div>
       </div>
       <div class="ops-header-right">
-        <div class="ops-token">
+        <div v-if="canOpsToken" class="ops-token">
           <span class="ops-token-label">运维令牌</span>
           <n-input
             size="small"

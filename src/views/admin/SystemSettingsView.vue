@@ -3,7 +3,7 @@
  * @file 系统设置视图：运维令牌强制与开放注册。
  */
 import { computed, onMounted, ref } from 'vue'
-import { NCard, NForm, NFormItem, NSwitch, NButton, NSpace, NDivider, useDialog, useMessage } from 'naive-ui'
+import { NCard, NForm, NFormItem, NSwitch, NButton, NSpace, NDivider, NInput, useDialog, useMessage } from 'naive-ui'
 import { getSystemConfig, updateSystemConfig, runSystemMigration } from '../../api/systemConfig'
 import { usePermissionStore } from '../../stores/permission'
 import { TimeFormatter } from '../../utils/time'
@@ -16,6 +16,7 @@ const dialog = useDialog()
 
 const allowRegister = ref(true)
 const forceOpsToken = ref(false)
+const opsToken = ref('')
 const emailVerifyEnabled = ref(true)
 const githubOAuthEnabled = ref(true)
 const dataMigrationLastTime = ref<string | null>(null)
@@ -23,6 +24,7 @@ const autoDataMigrationOnStartup = ref(true)
 
 const permissionStore = usePermissionStore()
 const canEdit = computed(() => permissionStore.hasPermission('sys:config:edit'))
+const canEditOpsToken = computed(() => permissionStore.hasPermission('sys:config:ops-token'))
 const canMigrate = computed(() => permissionStore.hasPermission('sys:config:migrate'))
 
 const showMsg = (msg: string, error = false) => {
@@ -37,6 +39,7 @@ const load = async () => {
     const res = await getSystemConfig()
     allowRegister.value = res.data.data.allowRegister
     forceOpsToken.value = res.data.data.forceOpsToken
+    opsToken.value = res.data.data.opsToken || ''
     emailVerifyEnabled.value = res.data.data.emailVerifyEnabled
     githubOAuthEnabled.value = res.data.data.githubOAuthEnabled
     dataMigrationLastTime.value = res.data.data.dataMigrationLastTime || null
@@ -77,6 +80,7 @@ const save = async () => {
     await updateSystemConfig({
       allowRegister: allowRegister.value,
       forceOpsToken: forceOpsToken.value,
+      opsToken: canEditOpsToken.value ? opsToken.value.trim() || undefined : undefined,
       emailVerifyEnabled: emailVerifyEnabled.value,
       githubOAuthEnabled: githubOAuthEnabled.value,
       autoDataMigrationOnStartup: autoDataMigrationOnStartup.value,
@@ -107,6 +111,16 @@ onMounted(load)
             <n-switch v-model:value="forceOpsToken" :disabled="!canEdit" />
             <span class="hint">开启后运维接口必须携带 X-Ops-Token</span>
           </n-space>
+        </n-form-item>
+        <n-form-item v-if="canEditOpsToken" label="运维令牌">
+          <n-input
+            v-model:value="opsToken"
+            type="password"
+            show-password-on="click"
+            placeholder="设置运维令牌"
+            :disabled="!canEdit"
+            style="width: 280px"
+          />
         </n-form-item>
         <n-form-item label="邮箱验证码">
           <n-space align="center" size="small">
