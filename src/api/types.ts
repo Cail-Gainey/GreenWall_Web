@@ -59,6 +59,7 @@ export interface UserCreateDto {
  */
 export interface UserUpdateDto {
   id: string
+  account: string
   nickName?: string
   avatar?: string
   phone?: string

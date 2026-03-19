@@ -340,8 +340,12 @@ async function submitForm() {
     return
   }
 
+  if (!form.value.account.trim()) {
+    return showMsg('请输入账号', true)
+  }
   const updatePayload: UserUpdateDto = {
     id: form.value.id,
+    account: form.value.account.trim(),
     nickName: form.value.nickName || undefined,
     email: canEditEmail.value ? form.value.email || undefined : undefined,
     phone: form.value.phone || undefined,
@@ -730,7 +734,7 @@ onMounted(async () => {
       <n-form>
         <n-space wrap size="large">
           <n-form-item label="账号">
-            <n-input v-model:value="form.account" :disabled="formMode === 'edit'" placeholder="登录账号" />
+            <n-input v-model:value="form.account" placeholder="登录账号" />
           </n-form-item>
           <n-form-item v-if="formMode === 'create'" label="密码">
             <n-input v-model:value="form.password" type="password" placeholder="至少 6 位" />
