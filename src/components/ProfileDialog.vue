@@ -140,6 +140,10 @@ async function submit() {
     return showMsg('无权限修改个人资料', true)
   }
 
+  if (form.value.remark.trim().length > 30) {
+    return showMsg('个性签名最多 30 个字符', true)
+  }
+
   saving.value = true
   clearMsg()
   try {
@@ -327,8 +331,16 @@ function discardPendingAvatar() {
             <n-form-item-gi label="性别">
               <n-select v-model:value="form.sex" :options="sexOptions" :disabled="!canEdit" />
             </n-form-item-gi>
-            <n-form-item-gi :span="2" label="备注">
-              <n-input v-model:value="form.remark" type="textarea" rows="3" :disabled="!canEdit" placeholder="请输入" />
+            <n-form-item-gi :span="2" label="个性签名">
+              <n-input
+                v-model:value="form.remark"
+                type="textarea"
+                rows="3"
+                :disabled="!canEdit"
+                placeholder="请输入个性签名，最多 30 个字符"
+                :maxlength="30"
+                show-count
+              />
             </n-form-item-gi>
           </n-grid>
         </n-form>
