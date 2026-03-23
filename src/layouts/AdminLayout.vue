@@ -215,12 +215,12 @@ async function handleLogout() {
 <template>
   <n-layout class="admin-layout" has-sider>
     <n-layout-sider width="240" bordered>
-      <div class="brand">
+      <button class="brand" type="button" @click="router.push('/admin')">
         <img :src="logoUrl" alt="logo" class="brand-logo" />
         <div class="brand-text">
           <div class="brand-title">GreenWall</div>
         </div>
-      </div>
+      </button>
       <n-menu
         :options="menuOptions"
         :value="activeKey"
@@ -275,6 +275,15 @@ async function handleLogout() {
   align-items: center;
   gap: 12px;
   padding: 18px 16px 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.brand:hover {
+  background: transparent;
 }
 
 .brand-logo {

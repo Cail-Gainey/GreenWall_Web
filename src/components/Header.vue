@@ -82,12 +82,12 @@ function goPrivacy() {
 <template>
   <div class="header">
     <div class="header-left">
-      <div v-if="showBrand !== false" class="brand">
+      <button v-if="showBrand !== false" class="brand" type="button" @click="router.push('/')">
         <img :src="logoUrl" alt="logo" class="brand-logo" />
         <div class="brand-text">
           <div class="brand-title">GreenWall</div>
         </div>
-      </div>
+      </button>
       <slot name="left"></slot>
     </div>
 
@@ -146,6 +146,14 @@ function goPrivacy() {
   display: flex;
   align-items: center;
   gap: 12px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.brand:hover {
+  background: transparent;
 }
 
 .brand-logo {

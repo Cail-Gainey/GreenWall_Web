@@ -3,6 +3,7 @@
  * @file 管理端顶部栏组件：独立于前台 Header。
  */
 import { computed } from "vue";
+import { useRouter } from "vue-router";
 import { NButton, NDropdown, NSpace, NAvatar } from "naive-ui";
 import { useTheme, type Theme } from "../composables/useTheme";
 import { usePermissionStore } from "../stores/permission";
@@ -22,6 +23,7 @@ const emit = defineEmits<{
     logout: [];
 }>();
 
+const router = useRouter();
 const { currentTheme, setTheme } = useTheme();
 const { hasPermission } = usePermissionStore();
 
@@ -64,12 +66,12 @@ function handleProfileSelect(key: string | number) {
 <template>
     <div class="admin-header">
         <div class="header-left">
-            <div v-if="showBrand !== false" class="brand">
+            <button v-if="showBrand !== false" class="brand" type="button" @click="router.push('/admin')">
                 <img :src="logoUrl" alt="logo" class="brand-logo" />
                 <div class="brand-text">
                     <div class="brand-title">GreenWall</div>
                 </div>
-            </div>
+            </button>
             <slot name="left"></slot>
         </div>
 
@@ -126,6 +128,14 @@ function handleProfileSelect(key: string | number) {
     display: flex;
     align-items: center;
     gap: 12px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.brand:hover {
+    background: transparent;
 }
 
 .brand-logo {
