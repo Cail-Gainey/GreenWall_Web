@@ -148,6 +148,17 @@ export interface UserFollowStatusDto {
   followingCount: number
 }
 
+export interface UserPublicProfileDto {
+  id: string
+  account: string
+  nickName?: string
+  avatar?: string
+  remark?: string
+  followerCount: number
+  followingCount: number
+  isFollowing: boolean
+}
+
 export interface UserDataDeletionDto {
   confirmText: string
 }
@@ -454,6 +465,7 @@ export interface PatternListItemDto {
   id: string
   title: string
   description?: string
+  creatorId: string
   visibility: 'public' | 'followers' | 'private'
   year: number
   gridCols: number

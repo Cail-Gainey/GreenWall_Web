@@ -7,7 +7,6 @@ import { useRouter } from 'vue-router'
 import {
   NAvatar,
   NButton,
-  NCard,
   NDivider,
   NGrid,
   NGridItem,
@@ -15,9 +14,7 @@ import {
   NInput,
   NPagination,
   NSelect,
-  NTag,
   NTooltip,
-  NModal,
   NSpace,
   NEmpty,
   NSpin,
@@ -25,18 +22,16 @@ import {
   useMessage,
 } from 'naive-ui'
 import {
+  Add,
+  Checkmark,
   CloudUpload,
   Chat,
   Download,
-  Edit,
   Favorite,
   FavoriteFilled,
   Send,
-  TrashCan,
   ThumbsUp,
   ThumbsUpFilled,
-  User,
-  View,
 } from '@vicons/carbon'
 import {
   getCommunityPatterns,
@@ -54,15 +49,17 @@ import {
   deletePattern,
   type PatternSort,
 } from '../../api/patternCommunity'
-import type { PatternDetailDto, PatternListItemDto, PatternCellDto, PatternCommentDto, UserFollowStatusDto } from '../../api/types'
+import type { PatternDetailDto, PatternListItemDto, PatternCommentDto, UserFollowStatusDto } from '../../api/types'
 import { usePermissionStore } from '../../stores/permission'
 import { usePatternImportStore } from '../../stores/patternImport'
 import PatternEditorModal from '../../components/PatternEditorModal.vue'
-import GraphTableTemplate from '../../components/GraphTableTemplate.vue'
-import { calcTotalCols, getYearMeta, isFutureCell } from '../../utils/graph'
+import PatternDetailModal from '../../components/PatternDetailModal.vue'
+import PatternCard from '../../components/PatternCard.vue'
+import { calcTotalCols } from '../../utils/graph'
 import { TimeFormatter } from '../../utils/time'
 import { resolveAvatar, userAvatarFallback } from '../../utils/avatar'
 import { followUser, getFollowStatus, unfollowUser } from '../../api/user'
+import { buildCellsFromGrid, buildGridFromCells } from '../../utils/patternGrid'
 
 const router = useRouter()
 const dialog = useDialog()
@@ -167,17 +164,6 @@ const yearOptions = computed(() => {
   return options
 })
 
-const visibilityLabel = (visibility?: string) => {
-  if (visibility === 'followers') return '仅关注者'
-  if (visibility === 'private') return '私密'
-  return '公开'
-}
-
-const visibilityTagType = (visibility?: string) => {
-  if (visibility === 'followers') return 'warning'
-  if (visibility === 'private') return 'error'
-  return 'success'
-}
 
 const loadFollowStatus = async (creatorId?: string) => {
   if (!creatorId || !isLoggedIn.value) {
@@ -219,6 +205,15 @@ const toggleFollowCreator = async () => {
   } finally {
     followLoading.value = false
   }
+}
+
+const goUserHome = (userId?: string) => {
+  if (!userId) return
+  if (permissionStore.user?.id === userId) {
+    router.push('/me')
+    return
+  }
+  router.push(`/users/${userId}`)
 }
 
 const goPublish = () => {
@@ -604,28 +599,6 @@ const removePattern = () => {
   })
 }
 
-const buildGridFromCells = (cells: PatternCellDto[], cols: number, rows: number) => {
-  const grid = Array.from({ length: cols }, () => Array(rows).fill(0))
-  cells.forEach((cell) => {
-    if (grid[cell.col] && grid[cell.col][cell.row] !== undefined) {
-      grid[cell.col][cell.row] = cell.level
-    }
-  })
-  return grid
-}
-
-const buildCellsFromGrid = (grid: number[][]) => {
-  const cells: PatternCellDto[] = []
-  grid.forEach((col, cIndex) => {
-    col.forEach((level, rIndex) => {
-      if (level > 0) {
-        cells.push({ col: cIndex, row: rIndex, level })
-      }
-    })
-  })
-  return cells
-}
-
 const openEditModal = async () => {
   if (!detail.value) return
   editTitle.value = detail.value.title
@@ -674,8 +647,6 @@ const saveEditPattern = async () => {
     }
     editVisible.value = false
     message.success('已更新图案')
-    await nextTick()
-    requestAnimationFrame(() => updateDetailScale())
   } catch (e: any) {
     message.error(e?.message || '更新失败')
   } finally {
@@ -715,62 +686,6 @@ const publishPattern = async () => {
   }
 }
 
-const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
-const days = ['', '一', '', '三', '', '五', '']
-
-const buildMonthPositions = (year: number, cols: number) => {
-  const { daysInYear, startDayOfWeek } = getYearMeta(year)
-  const positions: Array<{ label: string; colIndex: number }> = []
-  let col = 0
-  let row = startDayOfWeek
-  const tempDate = new Date(year, 0, 1)
-  for (let i = 0; i < daysInYear; i++) {
-    if (tempDate.getDate() === 1) {
-      positions.push({ label: months[tempDate.getMonth()]!, colIndex: col })
-    }
-    tempDate.setDate(tempDate.getDate() + 1)
-    row++
-    if (row > 6) {
-      row = 0
-      col++
-    }
-  }
-  return positions.filter((p) => p.colIndex < cols)
-}
-
-const buildCalendarGrid = (cells: PatternCellDto[], year: number) => {
-  const { daysInYear, startDayOfWeek } = getYearMeta(year)
-  const cols = calcTotalCols(year)
-  const grid: Array<Array<{ level: number } | null>> = Array.from({ length: cols }, () => Array(7).fill(null))
-  const map = new Map<string, number>()
-  cells.forEach((cell) => {
-    map.set(`${cell.col}-${cell.row}`, cell.level)
-  })
-  for (let c = 0; c < cols; c++) {
-    for (let r = 0; r < 7; r++) {
-      const index = c * 7 + r
-      if (index < startDayOfWeek || index >= startDayOfWeek + daysInYear) {
-        grid[c][r] = null
-        continue
-      }
-      const level = map.get(`${c}-${r}`) || 0
-      const future = isFutureCell(year, index, startDayOfWeek)
-      grid[c][r] = { level, isFuture: future }
-    }
-  }
-  return grid
-}
-
-const levelToColor = (level: number) => {
-  const colors = [
-    'var(--color-cell-empty)',
-    'var(--color-cell-level-1)',
-    'var(--color-cell-level-2)',
-    'var(--color-cell-level-3)',
-    'var(--color-cell-level-4)',
-  ]
-  return colors[level] ?? colors[0]!
-}
 
 
 watch(sort, () => {
@@ -828,66 +743,19 @@ onMounted(loadPatterns)
 
       <n-grid v-else :x-gap="18" :y-gap="18" :cols="3" responsive="screen">
         <n-grid-item v-for="item in patterns" :key="item.id">
-          <n-card class="pattern-card" hoverable @click="openDetail(item)">
-            <div class="card-header">
-              <div class="card-title">{{ item.title }}</div>
-              <n-space size="small">
-                <n-tag size="small" :type="visibilityTagType(item.visibility)">{{ visibilityLabel(item.visibility) }}</n-tag>
-                <n-tag size="small" type="success">{{ item.year }}</n-tag>
-              </n-space>
-            </div>
-            <div class="card-desc">{{ item.description || '暂无描述' }}</div>
-            <div class="pattern-preview">
-              <GraphTableTemplate
-                :grid-cols="buildCalendarGrid(item.cells, item.year)"
-                :month-positions="buildMonthPositions(item.year, calcTotalCols(item.year))"
-                :days="days"
-                :level-to-color="levelToColor"
-                :cell-size="10"
-                :gap="3"
-                :days-col-width="24"
-                :auto-scale="true"
-              />
-            </div>
-            <div class="card-author">
-              <n-avatar size="small" round color="transparent" class="user-avatar">
-                <img
-                  :src="resolveAvatar(item.creatorAvatar)"
-                  :alt="item.creatorName"
-                  referrerpolicy="no-referrer"
-                  @error="($event.target as HTMLImageElement).src = userAvatarFallback"
-                />
-              </n-avatar>
-              <span class="author-name">{{ item.creatorName }}</span>
-              <span class="author-date">{{ TimeFormatter.formatDate(item.createTime) }}</span>
-            </div>
-            <div class="card-meta">
-              <span class="meta-item">
-                <n-icon size="14">
-                  <View />
-                </n-icon>
-                {{ item.viewCount }}
-              </span>
-              <span class="meta-item">
-                <n-icon size="14">
-                  <ThumbsUp />
-                </n-icon>
-                {{ item.likeCount }}
-              </span>
-              <span class="meta-item">
-                <n-icon size="14">
-                  <Favorite />
-                </n-icon>
-                {{ item.favoriteCount }}
-              </span>
-              <span class="meta-item">
-                <n-icon size="14">
-                  <Chat />
-                </n-icon>
-                {{ item.commentCount }}
-              </span>
-            </div>
-            <div class="card-actions" @click.stop>
+          <PatternCard
+            :item="item"
+            clickable
+            :show-visibility-tag="true"
+            :hide-public-visibility="true"
+            :show-year-tag="true"
+            :show-author="true"
+            :author-date-text="TimeFormatter.formatDate(item.createTime)"
+            :show-comment-count="true"
+            @card-click="openDetail"
+            @user-click="goUserHome"
+          >
+            <template #actions>
               <n-tooltip v-if="showLike" trigger="hover">
                 <template #trigger>
                   <span class="tooltip-wrapper">
@@ -940,8 +808,8 @@ onMounted(loadPatterns)
                 </template>
                 {{ loginHint || '一键导入' }}
               </n-tooltip>
-            </div>
-          </n-card>
+            </template>
+          </PatternCard>
         </n-grid-item>
       </n-grid>
     </n-spin>
@@ -956,159 +824,42 @@ onMounted(loadPatterns)
       />
     </div>
 
-    <n-modal v-model:show="detailVisible" preset="card" title="图案详情" style="width: min(720px, 94vw);">
-      <n-spin :show="detailLoading">
-        <div v-if="detail" class="detail-body">
-          <div class="detail-header">
-            <div class="detail-title">{{ detail.title }}</div>
-            <n-space size="small">
-              <n-tag size="small" :type="visibilityTagType(detail.visibility)">{{ visibilityLabel(detail.visibility) }}</n-tag>
-              <n-tag size="small" type="success">{{ detail.year }}</n-tag>
-            </n-space>
-          </div>
-          <div class="detail-desc">{{ detail.description || '暂无描述' }}</div>
-          <div class="pattern-preview large" ref="detailPreviewRef">
-            <GraphTableTemplate
-              :grid-cols="buildCalendarGrid(detail.cells, detail.year)"
-              :month-positions="buildMonthPositions(detail.year, calcTotalCols(detail.year))"
-              :days="days"
-              :level-to-color="levelToColor"
-              :cell-size="12"
-              :gap="4"
-              :days-col-width="26"
-              :auto-scale="true"
-            />
-          </div>
-          <div class="detail-meta">
-            <span class="meta-item detail-author">
-              <n-avatar size="small" round color="transparent" class="user-avatar">
-                <img
-                  :src="resolveAvatar(detail.creatorAvatar)"
-                  :alt="detail.creatorName"
-                  referrerpolicy="no-referrer"
-                  @error="($event.target as HTMLImageElement).src = userAvatarFallback"
-                />
-              </n-avatar>
-              {{ detail.creatorName }}
-            </span>
-            <span class="meta-item">
-              <n-icon size="14">
-                <View />
+    <PatternDetailModal
+      v-model:show="detailVisible"
+      :loading="detailLoading"
+      :detail="detail"
+      :show-visibility-tag="detail?.visibility !== 'public'"
+      :is-logged-in="isLoggedIn"
+      :login-hint="loginHint"
+      :show-like="showLike"
+      :show-favorite="showFavorite"
+      :show-import="showImport"
+      :can-manage-detail="canManageDetail"
+      :can-edit="canEdit"
+      :can-delete="canDelete"
+      @like="detail && toggleLike(detail)"
+      @favorite="detail && toggleFavorite(detail)"
+      @import="detail && confirmImport(detail)"
+      @edit="openEditModal"
+      @delete="removePattern"
+      @go-user="goUserHome"
+    >
+      <template #actions-prefix>
+        <n-tooltip v-if="isLoggedIn && detail?.creatorId !== permissionStore.user?.id" trigger="hover">
+          <template #trigger>
+            <n-button size="small" secondary circle :loading="followLoading" @click="toggleFollowCreator">
+              <n-icon size="16">
+                <Checkmark v-if="followStatus?.isFollowing" />
+                <Add v-else />
               </n-icon>
-              {{ detail.viewCount }}
-            </span>
-            <span class="meta-item">
-              <n-icon size="14">
-                <ThumbsUp />
-              </n-icon>
-              {{ detail.likeCount }}
-            </span>
-            <span class="meta-item">
-              <n-icon size="14">
-                <Favorite />
-              </n-icon>
-              {{ detail.favoriteCount }}
-            </span>
-            <span class="meta-item">
-              <n-icon size="14">
-                <Chat />
-              </n-icon>
-              {{ detail.commentCount }}
-            </span>
-          </div>
-          <div class="detail-actions">
-            <n-button
-              v-if="isLoggedIn && detail.creatorId !== permissionStore.user?.id"
-              size="small"
-              secondary
-              :loading="followLoading"
-              @click="toggleFollowCreator"
-            >
-              {{ followStatus?.isFollowing ? '取消关注' : '关注作者' }}
             </n-button>
-            <n-tooltip v-if="showLike" trigger="hover">
-              <template #trigger>
-                <span class="tooltip-wrapper">
-                  <n-button
-                    size="small"
-                    secondary
-                    circle
-                    :disabled="!isLoggedIn"
-                    :type="detail.isLiked ? 'success' : 'default'"
-                    @click="toggleLike(detail)"
-                  >
-                    <n-icon size="16">
-                      <ThumbsUpFilled v-if="detail.isLiked" />
-                      <ThumbsUp v-else />
-                    </n-icon>
-                  </n-button>
-                </span>
-              </template>
-              {{ loginHint || '点赞' }}
-            </n-tooltip>
-            <n-tooltip v-if="showFavorite" trigger="hover">
-              <template #trigger>
-                <span class="tooltip-wrapper">
-                  <n-button
-                    size="small"
-                    secondary
-                    circle
-                    :disabled="!isLoggedIn"
-                    :type="detail.isFavorited ? 'warning' : 'default'"
-                    @click="toggleFavorite(detail)"
-                  >
-                    <n-icon size="16">
-                      <FavoriteFilled v-if="detail.isFavorited" />
-                      <Favorite v-else />
-                    </n-icon>
-                  </n-button>
-                </span>
-              </template>
-              {{ loginHint || '收藏' }}
-            </n-tooltip>
-            <n-tooltip v-if="showImport" trigger="hover">
-              <template #trigger>
-                <span class="tooltip-wrapper">
-                  <n-button size="small" type="primary" circle :disabled="!isLoggedIn" @click="confirmImport(detail)">
-                    <n-icon size="16">
-                      <Download />
-                    </n-icon>
-                  </n-button>
-                </span>
-              </template>
-              {{ loginHint || '一键导入' }}
-            </n-tooltip>
-            <template v-if="canManageDetail">
-              <n-tooltip v-if="canEdit" trigger="hover">
-                <template #trigger>
-                  <span class="tooltip-wrapper">
-                    <n-button size="small" circle @click="openEditModal">
-                      <n-icon size="16">
-                        <Edit />
-                      </n-icon>
-                    </n-button>
-                  </span>
-                </template>
-                编辑图案
-              </n-tooltip>
-              <n-tooltip v-if="canDelete" trigger="hover">
-                <template #trigger>
-                  <span class="tooltip-wrapper">
-                    <n-button size="small" circle type="error" ghost @click="removePattern">
-                      <n-icon size="16">
-                        <TrashCan />
-                      </n-icon>
-                    </n-button>
-                  </span>
-                </template>
-                删除
-              </n-tooltip>
-            </template>
-          </div>
-
-          <n-divider />
-
-          <div class="comment-section">
+          </template>
+          {{ followStatus?.isFollowing ? '取消关注' : '关注作者' }}
+        </n-tooltip>
+      </template>
+      <template #extra>
+        <n-divider />
+        <div class="comment-section">
             <div class="comment-header">
               <n-icon size="16">
                 <Chat />
@@ -1300,8 +1051,8 @@ onMounted(loadPatterns)
             </n-spin>
           </div>
         </div>
-      </n-spin>
-    </n-modal>
+      </template>
+    </PatternDetailModal>
 
     <PatternEditorModal
       v-model:show="editVisible"
@@ -1361,87 +1112,11 @@ onMounted(loadPatterns)
   color: var(--color-text-muted);
 }
 
-.pattern-card {
-  border-radius: 14px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.card-title {
-  font-weight: 600;
-}
-
-.card-desc {
-  font-size: 13px;
-  color: var(--color-text-muted);
-  min-height: 36px;
-  margin-bottom: 12px;
-}
-
-.card-author {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--color-text-muted);
-  margin-bottom: 10px;
-}
-
-.author-name {
-  font-weight: 600;
-  color: var(--color-text-main);
-}
-
-.author-date {
-  margin-left: auto;
-}
-
 .user-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-}
-
-.pattern-preview {
-  padding: 10px;
-  border-radius: 12px;
-  background: var(--color-bg-light);
-  border: 1px solid var(--color-border);
-  margin-bottom: 12px;
-  max-width: 100%;
-  overflow: hidden;
-  box-sizing: border-box;
-  width: 100%;
-}
-
-.pattern-preview.large {
-  padding: 16px;
-}
-
-.card-meta {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.meta-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.card-actions {
-  display: flex;
-  gap: 8px;
 }
 
 .tooltip-wrapper {
@@ -1452,45 +1127,6 @@ onMounted(loadPatterns)
   display: flex;
   justify-content: center;
   padding-top: 8px;
-}
-
-.detail-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.detail-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.detail-title {
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.detail-desc {
-  font-size: 14px;
-  color: var(--color-text-muted);
-}
-
-.detail-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-.detail-author {
-  gap: 8px;
-}
-
-.detail-actions {
-  display: flex;
-  gap: 8px;
 }
 
 .comment-section {

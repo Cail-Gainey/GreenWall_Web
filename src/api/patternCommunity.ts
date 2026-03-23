@@ -39,6 +39,14 @@ export function getPatternDetail(id: string) {
   return request.get<ApiResult<PatternDetailDto>>(`/patterns/${id}`)
 }
 
+export function getMyPatterns(params: { pageIndex?: number; pageSize?: number }) {
+  return request.get<ApiResult<PageResult<PatternListItemDto>>>('/patterns/mine', { params })
+}
+
+export function getUserPatterns(userId: string, params: { pageIndex?: number; pageSize?: number }) {
+  return request.get<ApiResult<PageResult<PatternListItemDto>>>(`/patterns/users/${userId}`, { params })
+}
+
 /**
  * @description 上传图案到社区。
  * @param data 创建参数

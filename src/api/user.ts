@@ -2,7 +2,7 @@
  * @file 用户管理接口封装。
  */
 import request from './request'
-import type { ApiResult, PageResult, UserCreateDto, UserDataDeletionDto, UserDto, UserFollowStatusDto, UserListItemDto, UserPrivacyConsentUpdateDto, UserProfileUpdateDto, UserQueryDto, UserUpdateDto } from './types'
+import type { ApiResult, PageResult, UserCreateDto, UserDataDeletionDto, UserDto, UserFollowStatusDto, UserListItemDto, UserPrivacyConsentUpdateDto, UserProfileUpdateDto, UserPublicProfileDto, UserQueryDto, UserUpdateDto } from './types'
 
 /**
  * @description 创建用户（需要 sys:user:add 权限）。
@@ -18,6 +18,10 @@ export function createUser(data: UserCreateDto) {
  */
 export function getUserInfo(id: string) {
   return request.get<ApiResult<UserDto>>(`/User/${id}`)
+}
+
+export function getPublicUserProfile(id: string) {
+  return request.get<ApiResult<UserPublicProfileDto>>(`/User/public/${id}`)
 }
 
 /**
