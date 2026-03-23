@@ -54,7 +54,7 @@ import {
   deletePattern,
   type PatternSort,
 } from '../../api/patternCommunity'
-import type { PatternDetailDto, PatternListItemDto, PatternCellDto, PatternCommentDto } from '../../api/types'
+import type { PatternDetailDto, PatternListItemDto, PatternCellDto, PatternCommentDto, UserFollowStatusDto } from '../../api/types'
 import { usePermissionStore } from '../../stores/permission'
 import { usePatternImportStore } from '../../stores/patternImport'
 import PatternEditorModal from '../../components/PatternEditorModal.vue'
@@ -62,6 +62,7 @@ import GraphTableTemplate from '../../components/GraphTableTemplate.vue'
 import { calcTotalCols, getYearMeta, isFutureCell } from '../../utils/graph'
 import { TimeFormatter } from '../../utils/time'
 import { resolveAvatar, userAvatarFallback } from '../../utils/avatar'
+import { followUser, getFollowStatus, unfollowUser } from '../../api/user'
 
 const router = useRouter()
 const dialog = useDialog()
@@ -71,6 +72,7 @@ const importStore = usePatternImportStore()
 const publishVisible = ref(false)
 const publishTitle = ref('')
 const publishDesc = ref('')
+const publishVisibility = ref<'public' | 'followers' | 'private'>('public')
 const publishGrid = ref<number[][]>([])
 const publishSubmitting = ref(false)
 const publishYear = ref(new Date().getFullYear())
@@ -107,9 +109,12 @@ const replyStates = ref<Record<string, {
   pageIndex: number
   total: number
 }>>({})
+const followStatus = ref<UserFollowStatusDto | null>(null)
+const followLoading = ref(false)
 const editVisible = ref(false)
 const editTitle = ref('')
 const editDesc = ref('')
+const editVisibility = ref<'public' | 'followers' | 'private'>('public')
 const editGrid = ref<number[][]>([])
 const editSubmitting = ref(false)
 const editYear = ref(new Date().getFullYear())
@@ -162,6 +167,60 @@ const yearOptions = computed(() => {
   return options
 })
 
+const visibilityLabel = (visibility?: string) => {
+  if (visibility === 'followers') return '仅关注者'
+  if (visibility === 'private') return '私密'
+  return '公开'
+}
+
+const visibilityTagType = (visibility?: string) => {
+  if (visibility === 'followers') return 'warning'
+  if (visibility === 'private') return 'error'
+  return 'success'
+}
+
+const loadFollowStatus = async (creatorId?: string) => {
+  if (!creatorId || !isLoggedIn.value) {
+    followStatus.value = null
+    return
+  }
+  if (permissionStore.user?.id === creatorId) {
+    followStatus.value = null
+    return
+  }
+  try {
+    followLoading.value = true
+    const res = await getFollowStatus(creatorId)
+    followStatus.value = res.data.data
+  } catch {
+    followStatus.value = null
+  } finally {
+    followLoading.value = false
+  }
+}
+
+const toggleFollowCreator = async () => {
+  if (!detail.value) return
+  if (!isLoggedIn.value) {
+    message.warning('请先登录后再操作')
+    return
+  }
+  if (permissionStore.user?.id === detail.value.creatorId) return
+  try {
+    followLoading.value = true
+    if (followStatus.value?.isFollowing) {
+      await unfollowUser(detail.value.creatorId)
+    } else {
+      await followUser(detail.value.creatorId)
+    }
+    await loadFollowStatus(detail.value.creatorId)
+  } catch (e: any) {
+    message.error(e?.message || '操作失败')
+  } finally {
+    followLoading.value = false
+  }
+}
+
 const goPublish = () => {
   if (!isLoggedIn.value) {
     message.warning('请先登录后再发布')
@@ -174,6 +233,7 @@ const goPublish = () => {
   publishYear.value = new Date().getFullYear()
   publishTitle.value = ''
   publishDesc.value = ''
+  publishVisibility.value = 'public'
   const cols = calcTotalCols(publishYear.value)
   publishGrid.value = Array.from({ length: cols }, () => Array(7).fill(0))
   publishVisible.value = true
@@ -205,6 +265,7 @@ const openDetail = async (item: PatternListItemDto) => {
   try {
     const res = await getPatternDetail(item.id)
     detail.value = res.data.data
+    await loadFollowStatus(detail.value.creatorId)
     await nextTick()
     const idx = patterns.value.findIndex((p) => p.id === item.id)
     if (idx >= 0 && detail.value) {
@@ -569,6 +630,7 @@ const openEditModal = async () => {
   if (!detail.value) return
   editTitle.value = detail.value.title
   editDesc.value = detail.value.description || ''
+  editVisibility.value = detail.value.visibility || 'public'
   editYear.value = detail.value.year
   editGrid.value = buildGridFromCells(detail.value.cells, detail.value.gridCols, detail.value.gridRows)
   editVisible.value = true
@@ -591,6 +653,7 @@ const saveEditPattern = async () => {
     await updatePattern(detail.value.id, {
       title,
       description: editDesc.value.trim() || undefined,
+      visibility: editVisibility.value,
       year: editYear.value,
       gridCols: detail.value.gridCols,
       gridRows: detail.value.gridRows,
@@ -598,12 +661,14 @@ const saveEditPattern = async () => {
     })
     detail.value.title = title
     detail.value.description = editDesc.value.trim() || undefined
+    detail.value.visibility = editVisibility.value
     detail.value.year = editYear.value
     detail.value.cells = cells
     const idx = patterns.value.findIndex((p) => p.id === detail.value!.id)
     if (idx >= 0) {
       patterns.value[idx].title = detail.value.title
       patterns.value[idx].description = detail.value.description
+      patterns.value[idx].visibility = detail.value.visibility
       patterns.value[idx].year = detail.value.year
       patterns.value[idx].cells = cells
     }
@@ -634,6 +699,7 @@ const publishPattern = async () => {
     await createPattern({
       title,
       description: publishDesc.value.trim() || undefined,
+      visibility: publishVisibility.value,
       year: publishYear.value,
       gridCols: publishGrid.value.length,
       gridRows: 7,
@@ -723,6 +789,7 @@ watch(detailVisible, (value) => {
     commentTotal.value = 0
     commentContent.value = ''
     commentPageIndex.value = 1
+    followStatus.value = null
   }
 })
 
@@ -764,7 +831,10 @@ onMounted(loadPatterns)
           <n-card class="pattern-card" hoverable @click="openDetail(item)">
             <div class="card-header">
               <div class="card-title">{{ item.title }}</div>
-              <n-tag size="small" type="success">{{ item.year }}</n-tag>
+              <n-space size="small">
+                <n-tag size="small" :type="visibilityTagType(item.visibility)">{{ visibilityLabel(item.visibility) }}</n-tag>
+                <n-tag size="small" type="success">{{ item.year }}</n-tag>
+              </n-space>
             </div>
             <div class="card-desc">{{ item.description || '暂无描述' }}</div>
             <div class="pattern-preview">
@@ -891,7 +961,10 @@ onMounted(loadPatterns)
         <div v-if="detail" class="detail-body">
           <div class="detail-header">
             <div class="detail-title">{{ detail.title }}</div>
-            <n-tag size="small" type="success">{{ detail.year }}</n-tag>
+            <n-space size="small">
+              <n-tag size="small" :type="visibilityTagType(detail.visibility)">{{ visibilityLabel(detail.visibility) }}</n-tag>
+              <n-tag size="small" type="success">{{ detail.year }}</n-tag>
+            </n-space>
           </div>
           <div class="detail-desc">{{ detail.description || '暂无描述' }}</div>
           <div class="pattern-preview large" ref="detailPreviewRef">
@@ -944,6 +1017,15 @@ onMounted(loadPatterns)
             </span>
           </div>
           <div class="detail-actions">
+            <n-button
+              v-if="isLoggedIn && detail.creatorId !== permissionStore.user?.id"
+              size="small"
+              secondary
+              :loading="followLoading"
+              @click="toggleFollowCreator"
+            >
+              {{ followStatus?.isFollowing ? '取消关注' : '关注作者' }}
+            </n-button>
             <n-tooltip v-if="showLike" trigger="hover">
               <template #trigger>
                 <span class="tooltip-wrapper">
@@ -1225,6 +1307,7 @@ onMounted(loadPatterns)
       v-model:show="editVisible"
       v-model:title="editTitle"
       v-model:desc="editDesc"
+      v-model:visibility="editVisibility"
       v-model:year="editYear"
       v-model:grid="editGrid"
       modal-title="编辑图案"
@@ -1236,6 +1319,7 @@ onMounted(loadPatterns)
       v-model:show="publishVisible"
       v-model:title="publishTitle"
       v-model:desc="publishDesc"
+      v-model:visibility="publishVisibility"
       v-model:year="publishYear"
       v-model:grid="publishGrid"
       modal-title="发布图案"

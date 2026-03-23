@@ -2,7 +2,7 @@
  * @file 用户管理接口封装。
  */
 import request from './request'
-import type { ApiResult, PageResult, UserCreateDto, UserDto, UserListItemDto, UserProfileUpdateDto, UserQueryDto, UserUpdateDto } from './types'
+import type { ApiResult, PageResult, UserCreateDto, UserDataDeletionDto, UserDto, UserFollowStatusDto, UserListItemDto, UserPrivacyConsentUpdateDto, UserProfileUpdateDto, UserQueryDto, UserUpdateDto } from './types'
 
 /**
  * @description 创建用户（需要 sys:user:add 权限）。
@@ -62,4 +62,24 @@ export function uploadAvatar(file: File) {
  */
 export function deleteUser(id: string) {
   return request.delete<ApiResult<boolean>>(`/User/${id}`)
+}
+
+export function updatePrivacyConsent(data: UserPrivacyConsentUpdateDto) {
+  return request.put<ApiResult<boolean>>('/User/privacy-consent', data)
+}
+
+export function deleteCurrentUserData(data: UserDataDeletionDto) {
+  return request.post<ApiResult<boolean>>('/User/delete-data', data)
+}
+
+export function getFollowStatus(userId: string) {
+  return request.get<ApiResult<UserFollowStatusDto>>(`/User/follows/${userId}`)
+}
+
+export function followUser(userId: string) {
+  return request.post<ApiResult<boolean>>(`/User/follows/${userId}`)
+}
+
+export function unfollowUser(userId: string) {
+  return request.delete<ApiResult<boolean>>(`/User/follows/${userId}`)
 }

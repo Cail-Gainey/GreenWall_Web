@@ -3,9 +3,9 @@
  * @file 个人信息弹窗：展示与编辑个人资料。
  */
 import { computed, onMounted, ref, watch } from 'vue'
-import { NAlert, NAvatar, NButton, NCard, NForm, NFormItemGi, NGrid, NInput, NModal, NSelect, NSpace } from 'naive-ui'
+import { NAlert, NAvatar, NButton, NCard, NCheckbox, NForm, NFormItemGi, NGrid, NInput, NModal, NSelect, NSpace, useDialog } from 'naive-ui'
 import { getMe } from '../api/auth'
-import { updateProfile, uploadAvatar } from '../api/user'
+import { deleteCurrentUserData, updateProfile, uploadAvatar } from '../api/user'
 import { usePermissionStore } from '../stores/permission'
 import { storeToRefs } from 'pinia'
 import type { UserProfileDto, UserProfileUpdateDto } from '../api/types'
@@ -25,6 +25,7 @@ const emit = defineEmits<{
 const permissionStore = usePermissionStore()
 const { user } = storeToRefs(permissionStore)
 const { hasPermission, loadPermission } = permissionStore
+const dialog = useDialog()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -46,6 +47,7 @@ const form = ref({
   phone: '',
   sex: 0,
   remark: '',
+  privacyConsent: false,
   lastLoginTime: '',
 })
 
@@ -111,6 +113,7 @@ function fillForm(data: UserProfileDto) {
     phone: data.phone || '',
     sex: data.sex ?? 0,
     remark: data.remark || '',
+    privacyConsent: !!data.privacyConsent,
     lastLoginTime: data.lastLoginTime || '',
   }
 }
@@ -163,6 +166,7 @@ async function submit() {
       phone: form.value.phone || undefined,
       sex: form.value.sex,
       remark: form.value.remark || undefined,
+      privacyConsent: form.value.privacyConsent,
     }
     await updateProfile(payload)
     showMsg('保存成功')
@@ -280,6 +284,31 @@ function discardPendingAvatar() {
   pendingAvatarFile.value = null
   showMsg('已放弃头像更改', false)
 }
+
+function togglePrivacyConsent(checked: boolean) {
+  form.value.privacyConsent = checked
+}
+
+function confirmDeleteMyData() {
+  dialog.warning({
+    title: '删除个人数据',
+    content: '该操作将删除账号及相关个人数据，且不可恢复。确认继续吗？',
+    positiveText: '确认删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await deleteCurrentUserData({ confirmText: 'DELETE' })
+        permissionStore.reset()
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        emit('update:show', false)
+        window.location.href = '/'
+      } catch (e: any) {
+        showMsg(e?.message || '删除个人数据失败', true)
+      }
+    },
+  })
+}
 </script>
 
 <template>
@@ -342,6 +371,11 @@ function discardPendingAvatar() {
                 show-count
               />
             </n-form-item-gi>
+            <n-form-item-gi :span="2" label="隐私与合规">
+              <n-checkbox :checked="form.privacyConsent" :disabled="!canEdit" @update:checked="togglePrivacyConsent">
+                我同意隐私授权，并允许系统按隐私条款处理个人数据
+              </n-checkbox>
+            </n-form-item-gi>
           </n-grid>
         </n-form>
 
@@ -351,12 +385,15 @@ function discardPendingAvatar() {
         </div>
       </n-card>
 
-      <n-space justify="end">
-        <n-button secondary @click="emit('update:show', false)">关闭</n-button>
-        <n-button v-if="hasPendingAvatar" secondary @click="discardPendingAvatar">放弃头像更改</n-button>
-        <n-button type="primary" :loading="saving" :disabled="!canEdit" @click="submit">
-          保存
-        </n-button>
+      <n-space justify="space-between" align="center">
+        <n-button type="error" secondary :disabled="!canEdit" @click="confirmDeleteMyData">删除我的数据</n-button>
+        <n-space>
+          <n-button secondary @click="emit('update:show', false)">关闭</n-button>
+          <n-button v-if="hasPendingAvatar" secondary @click="discardPendingAvatar">放弃头像更改</n-button>
+          <n-button type="primary" :loading="saving" :disabled="!canEdit" @click="submit">
+            保存
+          </n-button>
+        </n-space>
       </n-space>
     </n-space>
   </n-modal>

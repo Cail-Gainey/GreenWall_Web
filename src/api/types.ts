@@ -77,6 +77,7 @@ export interface UserProfileUpdateDto {
   phone?: string
   sex?: number
   remark?: string
+  privacyConsent?: boolean
 }
 
 /**
@@ -129,8 +130,26 @@ export interface UserProfileDto {
   sex: number
   lastLoginTime?: string
   remark?: string
+  privacyConsent: boolean
+  followerCount: number
+  followingCount: number
   roles: string[]
   permissions: string[]
+}
+
+export interface UserPrivacyConsentUpdateDto {
+  privacyConsent: boolean
+}
+
+export interface UserFollowStatusDto {
+  userId: string
+  isFollowing: boolean
+  followerCount: number
+  followingCount: number
+}
+
+export interface UserDataDeletionDto {
+  confirmText: string
 }
 
 /**
@@ -416,6 +435,7 @@ export interface PatternCellDto {
 export interface PatternCreateDto {
   title: string
   description?: string
+  visibility?: 'public' | 'followers' | 'private'
   year: number
   gridCols: number
   gridRows: number
@@ -434,6 +454,7 @@ export interface PatternListItemDto {
   id: string
   title: string
   description?: string
+  visibility: 'public' | 'followers' | 'private'
   year: number
   gridCols: number
   gridRows: number

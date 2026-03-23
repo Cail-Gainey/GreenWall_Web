@@ -18,6 +18,7 @@ const props = withDefaults(
     submitLoading?: boolean
     title: string
     desc: string
+    visibility: 'public' | 'followers' | 'private'
     year: number
     grid: number[][]
     cellSize?: number
@@ -34,6 +35,7 @@ const emit = defineEmits<{
   (e: 'update:show', value: boolean): void
   (e: 'update:title', value: string): void
   (e: 'update:desc', value: string): void
+  (e: 'update:visibility', value: 'public' | 'followers' | 'private'): void
   (e: 'update:year', value: number): void
   (e: 'update:grid', value: number[][]): void
   (e: 'submit'): void
@@ -65,6 +67,11 @@ const yearOptions = computed(() => {
 
 const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
 const days = ['', '一', '', '三', '', '五', '']
+const visibilityOptions = [
+  { label: '公开', value: 'public' },
+  { label: '仅关注者', value: 'followers' },
+  { label: '私密', value: 'private' },
+]
 
 const yearMeta = computed(() => getYearMeta(props.year))
 
@@ -359,6 +366,12 @@ watch(activeTool, () => {
         placeholder="可选，简要描述图案"
         :autosize="{ minRows: 2, maxRows: 3 }"
         @update:value="emit('update:desc', $event)"
+      />
+      <n-select
+        :value="visibility"
+        :options="visibilityOptions"
+        placeholder="请选择作品可见性"
+        @update:value="emit('update:visibility', $event as 'public' | 'followers' | 'private')"
       />
     </div>
     <div class="edit-canvas">
