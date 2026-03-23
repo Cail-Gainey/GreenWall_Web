@@ -230,27 +230,29 @@ async function handleLogout() {
         accordion
       />
     </n-layout-sider>
-    <n-layout>
-        <n-layout-header bordered class="admin-header">
-          <div class="header-title">管理后台</div>
-          <n-space align="center">
-            <n-dropdown :options="themeOptions" @select="handleThemeSelect">
-              <n-button size="small" quaternary>主题：{{ currentTheme }}</n-button>
-            </n-dropdown>
-            <n-button size="small" quaternary @click="router.push('/')">前往前台</n-button>
-            <n-dropdown v-if="user" trigger="hover" :options="profileOptions" @select="handleProfileSelect">
-              <n-button size="small" quaternary>
-                <n-space align="center" size="small">
-                  <n-avatar size="small" :src="avatarSrc" :fallback-src="userAvatarFallback" :img-props="{ referrerpolicy: 'no-referrer' }" />
-                  <span class="header-user">{{ user.nickName || user.account }}</span>
-                </n-space>
-              </n-button>
-            </n-dropdown>
-          </n-space>
+    <n-layout class="admin-main">
+      <n-layout-header bordered class="admin-header">
+        <div class="header-title">管理后台</div>
+        <n-space align="center">
+          <n-dropdown :options="themeOptions" @select="handleThemeSelect">
+            <n-button size="small" quaternary>主题：{{ currentTheme }}</n-button>
+          </n-dropdown>
+          <n-button size="small" quaternary @click="router.push('/')">前往前台</n-button>
+          <n-dropdown v-if="user" trigger="hover" :options="profileOptions" @select="handleProfileSelect">
+            <n-button size="small" quaternary>
+              <n-space align="center" size="small">
+                <n-avatar size="small" :src="avatarSrc" :fallback-src="userAvatarFallback" :img-props="{ referrerpolicy: 'no-referrer' }" />
+                <span class="header-user">{{ user.nickName || user.account }}</span>
+              </n-space>
+            </n-button>
+          </n-dropdown>
+        </n-space>
       </n-layout-header>
       <AdminTabs />
       <n-layout-content class="admin-content">
-        <router-view></router-view>
+        <div class="admin-scroll-container">
+          <router-view></router-view>
+        </div>
       </n-layout-content>
     </n-layout>
     <ProfileDialog v-if="user" v-model:show="showProfile" />
@@ -260,6 +262,12 @@ async function handleLogout() {
 <style scoped>
 .admin-layout {
   height: 100vh;
+  overflow: hidden;
+}
+
+.admin-main {
+  height: 100vh;
+  overflow: hidden;
 }
 
 .brand {
@@ -301,6 +309,15 @@ async function handleLogout() {
 }
 
 .admin-content {
+  flex: 1;
+  min-height: 0;
   padding: 20px;
+  overflow: hidden;
+}
+
+.admin-scroll-container {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
 }
 </style>

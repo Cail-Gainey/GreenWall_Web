@@ -4,7 +4,6 @@
  */
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { NLayout, NLayoutHeader, NLayoutContent } from 'naive-ui'
 import Header from '../components/Header.vue'
 import ProfileDialog from '../components/ProfileDialog.vue'
 import AuthDialog from '../components/AuthDialog.vue'
@@ -105,19 +104,21 @@ async function onLogout() {
 </script>
 
 <template>
-  <n-layout class="user-layout">
-    <n-layout-header bordered>
+  <div class="user-layout">
+    <div class="user-header">
       <Header
         :user="currentUser"
         @open-auth="showAuthDialog = true"
         @open-profile="onOpenProfile"
         @logout="onLogout"
       />
-    </n-layout-header>
-    <n-layout-content class="user-content">
-      <router-view></router-view>
-    </n-layout-content>
-  </n-layout>
+    </div>
+    <main class="user-content">
+      <div class="user-scroll-container">
+        <router-view></router-view>
+      </div>
+    </main>
+  </div>
 
   <AuthDialog v-if="showAuthDialog" @close="showAuthDialog = false" @logged-in="onLoggedIn" />
   <ProfileDialog v-model:show="showProfileDialog" />
@@ -125,23 +126,27 @@ async function onLogout() {
 
 <style scoped>
 .user-layout {
-  min-height: 100vh;
-  height: auto;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.user-header {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
 .user-content {
-  display: flex;
-  flex-direction: column;
   flex: 1;
-  position: relative;
   min-height: 0;
-  box-sizing: border-box;
+  overflow: hidden;
 }
 
-:deep(.n-layout-scroll-container) {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  overflow: visible;
+.user-scroll-container {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
 }
 </style>
