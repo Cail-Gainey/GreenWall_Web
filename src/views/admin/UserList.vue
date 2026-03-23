@@ -32,7 +32,7 @@ import { useRoleListStore } from '../../stores/roleList'
 import { assignUserRoles } from '../../api/permission'
 import { useUserListStore } from '../../stores/userList'
 import { usePermissionStore } from '../../stores/permission'
-import defaultAvatar from '../../assets/user.png'
+import { resolveAvatar, userAvatarFallback } from '../../utils/avatar'
 import { TimeFormatter } from '../../utils/time'
 import type {
   RoleDto,
@@ -449,12 +449,26 @@ const columns = computed<DataTableColumns<UserListItemDto>>(() => {
       key: 'avatar',
       width: 80,
       render: (row) =>
-        h(NAvatar, {
-          round: true,
-          size: 40,
-          src: row.avatar || defaultAvatar,
-          fallbackSrc: defaultAvatar,
-        }),
+        h(
+          NAvatar,
+          {
+            round: true,
+            size: 40,
+            color: 'transparent',
+          },
+          {
+            default: () =>
+              h('img', {
+                src: resolveAvatar(row.avatar),
+                alt: row.nickName || row.account,
+                referrerpolicy: 'no-referrer',
+                onError: (event: Event) => {
+                  ;(event.target as HTMLImageElement).src = userAvatarFallback
+                },
+                style: 'width: 100%; height: 100%; object-fit: cover; display: block;',
+              }),
+          },
+        ),
     })
   }
 

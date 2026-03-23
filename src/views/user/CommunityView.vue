@@ -907,10 +907,15 @@ onMounted(loadPatterns)
             />
           </div>
           <div class="detail-meta">
-            <span class="meta-item">
-              <n-icon size="14">
-                <User />
-              </n-icon>
+            <span class="meta-item detail-author">
+              <n-avatar size="small" round color="transparent" class="user-avatar">
+                <img
+                  :src="resolveAvatar(detail.creatorAvatar)"
+                  :alt="detail.creatorName"
+                  referrerpolicy="no-referrer"
+                  @error="($event.target as HTMLImageElement).src = userAvatarFallback"
+                />
+              </n-avatar>
               {{ detail.creatorName }}
             </span>
             <span class="meta-item">
@@ -1393,6 +1398,10 @@ onMounted(loadPatterns)
   gap: 12px;
   font-size: 12px;
   color: var(--color-text-muted);
+}
+
+.detail-author {
+  gap: 8px;
 }
 
 .detail-actions {
