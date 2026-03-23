@@ -71,6 +71,20 @@ function openPrivacy() {
   router.push('/privacy')
 }
 
+function handleEnterSubmit() {
+  if (loading.value) return
+  if (mode.value === 'login') {
+    void handleLogin()
+    return
+  }
+  if (mode.value === 'register') {
+    void handleRegister()
+    return
+  }
+  if (mode.value === 'forgot') {
+    void handleReset()
+  }
+}
 
 function startCountdown() {
   countdown.value = 60
@@ -225,7 +239,7 @@ onMounted(async () => {
     <n-card style="width: min(520px, 92vw);" title="账号中心" :bordered="false">
       <n-tabs v-model:value="mode" type="line">
         <n-tab-pane name="login" tab="登录">
-          <n-form>
+          <n-form @keydown.enter.prevent="handleEnterSubmit">
             <n-form-item label="账号">
               <n-input v-model:value="loginAccount" placeholder="请输入账号" />
             </n-form-item>
@@ -243,7 +257,7 @@ onMounted(async () => {
         </n-tab-pane>
 
         <n-tab-pane v-if="allowRegister" name="register" tab="注册">
-          <n-form>
+          <n-form @keydown.enter.prevent="handleEnterSubmit">
             <n-form-item label="账号">
               <n-input v-model:value="regAccount" placeholder="请输入账号" />
             </n-form-item>
@@ -281,7 +295,7 @@ onMounted(async () => {
         </n-tab-pane>
 
         <n-tab-pane name="forgot" tab="忘记密码">
-          <n-form>
+          <n-form @keydown.enter.prevent="handleEnterSubmit">
             <n-form-item label="邮箱">
               <n-input v-model:value="forgotEmail" placeholder="email@example.com" />
             </n-form-item>
