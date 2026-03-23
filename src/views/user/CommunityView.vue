@@ -61,7 +61,7 @@ import PatternEditorModal from '../../components/PatternEditorModal.vue'
 import GraphTableTemplate from '../../components/GraphTableTemplate.vue'
 import { calcTotalCols, getYearMeta, isFutureCell } from '../../utils/graph'
 import { TimeFormatter } from '../../utils/time'
-import userAvatarFallback from '../../assets/user.png'
+import { resolveAvatar, userAvatarFallback } from '../../utils/avatar'
 
 const router = useRouter()
 const dialog = useDialog()
@@ -565,24 +565,6 @@ const buildCellsFromGrid = (grid: number[][]) => {
   return cells
 }
 
-const resolveAvatar = (avatar?: string) => {
-  const src = avatar?.trim()
-  if (!src) return userAvatarFallback
-  if (src.startsWith('http://') || src.startsWith('https://')) {
-    try {
-      const url = new URL(src)
-      if (url.hostname === 'oss.whisperlink.icu') {
-        const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8888/api'
-        const safeBase = apiBase.endsWith('/') ? apiBase.slice(0, -1) : apiBase
-        return `${safeBase}/proxy/avatar?url=${encodeURIComponent(src)}`
-      }
-    } catch {
-      return src
-    }
-  }
-  return src
-}
-
 const openEditModal = async () => {
   if (!detail.value) return
   editTitle.value = detail.value.title
@@ -798,16 +780,13 @@ onMounted(loadPatterns)
               />
             </div>
             <div class="card-author">
-              <n-avatar
-                size="small"
-                round
-                :src="resolveAvatar(item.creatorAvatar)"
-                :fallback-src="userAvatarFallback"
-                :img-props="{ referrerpolicy: 'no-referrer' }"
-              >
-                <n-icon size="14">
-                  <User />
-                </n-icon>
+              <n-avatar size="small" round color="transparent" class="user-avatar">
+                <img
+                  :src="resolveAvatar(item.creatorAvatar)"
+                  :alt="item.creatorName"
+                  referrerpolicy="no-referrer"
+                  @error="($event.target as HTMLImageElement).src = userAvatarFallback"
+                />
               </n-avatar>
               <span class="author-name">{{ item.creatorName }}</span>
               <span class="author-date">{{ TimeFormatter.formatDate(item.createTime) }}</span>
@@ -1084,16 +1063,13 @@ onMounted(loadPatterns)
               <div v-else class="comment-list-wrap" ref="commentScrollRef" @scroll="handleCommentScroll">
                 <div class="comment-list">
                   <div v-for="item in comments" :key="item.id" class="comment-item">
-                    <n-avatar
-                      size="small"
-                      round
-                      :src="resolveAvatar(item.userAvatar)"
-                      :fallback-src="userAvatarFallback"
-                      :img-props="{ referrerpolicy: 'no-referrer' }"
-                    >
-                      <n-icon size="14">
-                        <User />
-                      </n-icon>
+                    <n-avatar size="small" round color="transparent" class="user-avatar">
+                      <img
+                        :src="resolveAvatar(item.userAvatar)"
+                        :alt="item.userName"
+                        referrerpolicy="no-referrer"
+                        @error="($event.target as HTMLImageElement).src = userAvatarFallback"
+                      />
                     </n-avatar>
                     <div class="comment-body">
                       <div class="comment-meta">
@@ -1165,16 +1141,13 @@ onMounted(loadPatterns)
                           </div>
                           <div v-else class="reply-items">
                             <div v-for="reply in getReplyState(item.id).items" :key="reply.id" class="reply-item">
-                              <n-avatar
-                                size="small"
-                                round
-                                :src="resolveAvatar(reply.userAvatar)"
-                                :fallback-src="userAvatarFallback"
-                                :img-props="{ referrerpolicy: 'no-referrer' }"
-                              >
-                                <n-icon size="14">
-                                  <User />
-                                </n-icon>
+                              <n-avatar size="small" round color="transparent" class="user-avatar">
+                                <img
+                                  :src="resolveAvatar(reply.userAvatar)"
+                                  :alt="reply.userName"
+                                  referrerpolicy="no-referrer"
+                                  @error="($event.target as HTMLImageElement).src = userAvatarFallback"
+                                />
                               </n-avatar>
                               <div class="reply-body">
                                 <div class="comment-meta">
@@ -1337,6 +1310,13 @@ onMounted(loadPatterns)
 
 .author-date {
   margin-left: auto;
+}
+
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .pattern-preview {

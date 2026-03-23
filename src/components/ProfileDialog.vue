@@ -9,7 +9,7 @@ import { updateProfile, uploadAvatar } from '../api/user'
 import { usePermissionStore } from '../stores/permission'
 import { storeToRefs } from 'pinia'
 import type { UserProfileDto, UserProfileUpdateDto } from '../api/types'
-import userAvatarFallback from '../assets/user.png'
+import { resolveAvatar, userAvatarFallback } from '../utils/avatar'
 import { TimeFormatter } from '../utils/time'
 import 'vue-cropper/dist/index.css'
 import { VueCropper } from 'vue-cropper'
@@ -54,8 +54,7 @@ const canUploadAvatar = computed(() => hasPermission('app:profile:avatar'))
 const canEditEmail = computed(() => canEdit.value && !form.value.email)
 const avatarSrc = computed(() => {
   if (pendingAvatarPreview.value) return pendingAvatarPreview.value
-  if (!form.value.avatar) return userAvatarFallback
-  return form.value.avatar.trim()
+  return resolveAvatar(form.value.avatar)
 })
 
 const sexOptions = [

@@ -8,7 +8,7 @@ import { NButton, NDropdown, NSpace, NAvatar } from 'naive-ui'
 import { useTheme, type Theme } from '../composables/useTheme'
 import { usePermissionStore } from '../stores/permission'
 import type { UserProfileDto } from '../api/types'
-import userAvatarFallback from '../assets/user.png'
+import { resolveAvatar, userAvatarFallback } from '../utils/avatar'
 import logoUrl from '../assets/logo.png'
 
 const props = withDefaults(defineProps<{
@@ -54,10 +54,7 @@ const profileOptions = computed(() => {
 })
 
 
-const avatarSrc = computed(() => {
-  if (!props.user?.avatar) return userAvatarFallback
-  return props.user.avatar.trim()
-})
+const avatarSrc = computed(() => resolveAvatar(props.user?.avatar))
 
 function handleThemeSelect(key: string | number) {
   setTheme(key as Theme)

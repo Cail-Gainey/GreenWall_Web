@@ -12,7 +12,7 @@ import type { MenuTreeDto } from '../api/types'
 import type { MenuOption } from 'naive-ui'
 import AdminTabs from '../components/AdminTabs.vue'
 import ProfileDialog from '../components/ProfileDialog.vue'
-import userAvatarFallback from '../assets/user.png'
+import { resolveAvatar, userAvatarFallback } from '../utils/avatar'
 import logoUrl from '../assets/logo.png'
 import { storeToRefs } from 'pinia'
 import { useMenuTreeStore } from '../stores/menuTree'
@@ -149,10 +149,7 @@ const profileOptions = computed(() => {
   return options
 })
 
-const avatarSrc = computed(() => {
-  if (!user.value?.avatar) return userAvatarFallback
-  return user.value.avatar.trim()
-})
+const avatarSrc = computed(() => resolveAvatar(user.value?.avatar))
 
 function handleSelect(key: string) {
   if (key.startsWith('dir-')) return
