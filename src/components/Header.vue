@@ -6,6 +6,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NButton, NDropdown, NSpace, NAvatar } from 'naive-ui'
 import { useTheme, type Theme } from '../composables/useTheme'
+import { createThemeDropdownOptions, getThemeLabel, getThemeSwatchStyle } from '../theme/themeOptions'
 import { usePermissionStore } from '../stores/permission'
 import type { UserProfileDto } from '../api/types'
 import { resolveAvatar, userAvatarFallback } from '../utils/avatar'
@@ -32,17 +33,7 @@ const route = useRoute()
 const { currentTheme, setTheme } = useTheme()
 const { hasPermission, hasRole } = usePermissionStore()
 
-const themeOptions = [
-  { label: '浅色', key: 'light' },
-  { label: '暗色', key: 'dark' },
-  { label: '紫色', key: 'purple' },
-  { label: '粉色', key: 'pink' },
-  { label: '海蓝', key: 'ocean' },
-  { label: '琥珀', key: 'amber' },
-  { label: '石板', key: 'slate' },
-  { label: '莫奈', key: 'monet' },
-  { label: '系统', key: 'auto' },
-]
+const themeOptions = createThemeDropdownOptions()
 
 const profileOptions = computed(() => {
   const options: Array<{ label: string; key: string }> = []
@@ -56,6 +47,8 @@ const profileOptions = computed(() => {
 
 
 const avatarSrc = computed(() => resolveAvatar(props.user?.avatar))
+const currentThemeLabel = computed(() => getThemeLabel(currentTheme.value))
+const currentThemeSwatchStyle = computed(() => getThemeSwatchStyle(currentTheme.value))
 
 function handleThemeSelect(key: string | number) {
   setTheme(key as Theme)
@@ -106,7 +99,7 @@ function goPrivacy() {
       </n-button>
       <n-dropdown :options="themeOptions" @select="handleThemeSelect">
         <n-button quaternary size="small">
-          主题：{{ currentTheme }}
+          <span class="theme-trigger"><span class="theme-swatch" :style="currentThemeSwatchStyle"></span>主题：{{ currentThemeLabel }}</span>
         </n-button>
       </n-dropdown>
 
@@ -177,6 +170,16 @@ function goPrivacy() {
   font-weight: 700;
   font-size: 1rem;
   color: var(--color-text-main);
+}
+
+.theme-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-swatch {
+  flex-shrink: 0;
 }
 
 </style>

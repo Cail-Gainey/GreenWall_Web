@@ -21,6 +21,7 @@ import { useUserListStore } from '../stores/userList'
 import { usePushRecordStore } from '../stores/pushRecord'
 import { useAdminTabsStore } from '../stores/adminTabs'
 import { useTheme, type Theme } from '../composables/useTheme'
+import { createThemeDropdownOptions, getThemeLabel, getThemeSwatchStyle } from '../theme/themeOptions'
 
 const router = useRouter()
 const route = useRoute()
@@ -128,17 +129,7 @@ function resolveExpandedKeys(targetPath: string) {
   return Array.from(new Set(keys))
 }
 
-const themeOptions = [
-  { label: '浅色', key: 'light' },
-  { label: '暗色', key: 'dark' },
-  { label: '紫色', key: 'purple' },
-  { label: '粉色', key: 'pink' },
-  { label: '海蓝', key: 'ocean' },
-  { label: '琥珀', key: 'amber' },
-  { label: '石板', key: 'slate' },
-  { label: '莫奈', key: 'monet' },
-  { label: '系统', key: 'auto' },
-]
+const themeOptions = createThemeDropdownOptions()
 
 const profileOptions = computed(() => {
   const options: Array<{ label: string; key: string }> = []
@@ -150,6 +141,8 @@ const profileOptions = computed(() => {
 })
 
 const avatarSrc = computed(() => resolveAvatar(user.value?.avatar))
+const currentThemeLabel = computed(() => getThemeLabel(currentTheme.value))
+const currentThemeSwatchStyle = computed(() => getThemeSwatchStyle(currentTheme.value))
 
 function handleSelect(key: string) {
   if (key.startsWith('dir-')) return
@@ -235,7 +228,9 @@ async function handleLogout() {
         <div class="header-title">管理后台</div>
         <n-space align="center">
           <n-dropdown :options="themeOptions" @select="handleThemeSelect">
-            <n-button size="small" quaternary>主题：{{ currentTheme }}</n-button>
+            <n-button size="small" quaternary>
+              <span class="theme-trigger"><span class="theme-swatch" :style="currentThemeSwatchStyle"></span>主题：{{ currentThemeLabel }}</span>
+            </n-button>
           </n-dropdown>
           <n-button size="small" quaternary @click="router.push('/')">前往前台</n-button>
           <n-dropdown v-if="user" trigger="hover" :options="profileOptions" @select="handleProfileSelect">
@@ -315,6 +310,16 @@ async function handleLogout() {
 .header-user {
   font-size: 0.85rem;
   color: var(--color-text-muted);
+}
+
+.theme-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-swatch {
+  flex-shrink: 0;
 }
 
 .admin-content {
