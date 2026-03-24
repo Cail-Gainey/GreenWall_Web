@@ -2,6 +2,7 @@
  * @file GitHub OAuth 与贡献图推送接口封装。
  */
 import request from './request'
+import { cachedGet, invalidateHttpCache } from './httpCache'
 import type {
   ApiResult,
   GitHubOAuthDto,
@@ -17,6 +18,9 @@ import type {
 export function exchangeGithubTicket(ticket: string) {
   return request.get<ApiResult<GitHubOAuthDto>>('/github/exchange', {
     params: { ticket },
+  }).then((res) => {
+    invalidateHttpCache(['github:oauth'])
+    return res
   })
 }
 
@@ -25,7 +29,10 @@ export function exchangeGithubTicket(ticket: string) {
  * @param payload 推送请求参数
  */
 export function pushGithubContributions(payload: GitHubPushRequestDto) {
-  return request.post<ApiResult<GitHubPushResponseDto>>('/github/push', payload)
+  return request.post<ApiResult<GitHubPushResponseDto>>('/github/push', payload).then((res) => {
+    invalidateHttpCache(['github:push'])
+    return res
+  })
 }
 
 /**
@@ -33,7 +40,10 @@ export function pushGithubContributions(payload: GitHubPushRequestDto) {
  * @param jobId 任务 ID
  */
 export function getGithubPushStatus(jobId: string) {
-  return request.get<ApiResult<GitHubPushStatusDto>>(`/github/push/${jobId}`)
+  return cachedGet<ApiResult<GitHubPushStatusDto>>(`/github/push/${jobId}`, undefined, {
+    ttlMs: 3_000,
+    tags: ['github:push'],
+  })
 }
 
 /**
@@ -41,7 +51,10 @@ export function getGithubPushStatus(jobId: string) {
  * @param login GitHub 登录名
  */
 export function getGithubRecentPushes(login: string) {
-  return request.get<ApiResult<GitHubPushStatusDto[]>>('/github/push/recent', {
+  return cachedGet<ApiResult<GitHubPushStatusDto[]>>('/github/push/recent', {
     params: { login },
+  }, {
+    ttlMs: 15_000,
+    tags: ['github:push'],
   })
 }

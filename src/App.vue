@@ -15,6 +15,7 @@ import {
 import { useTheme } from './composables/useTheme'
 import { getPalette, type ResolvedTheme } from './theme/palette'
 import { useAppConfigStore } from './stores/appConfig'
+import { precacheGlobalData } from './api/precache'
 
 /**
  * @description 当前激活贡献等级（0-4）。
@@ -105,6 +106,7 @@ onMounted(() => {
   document.documentElement.style.overflow = 'hidden'
   document.body.style.overflow = 'hidden'
   void appConfigStore.load()
+  void precacheGlobalData()
 })
 
 onBeforeUnmount(() => {

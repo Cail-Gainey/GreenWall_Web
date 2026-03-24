@@ -2,6 +2,7 @@
  * @file 认证相关接口封装。
  */
 import request from './request'
+import { cachedGet, invalidateHttpCache } from './httpCache'
 import type { ApiResult, LoginDto, RegisterDto, ResetPasswordDto, TokenDto, UserProfileDto } from './types'
 
 /**
@@ -9,7 +10,10 @@ import type { ApiResult, LoginDto, RegisterDto, ResetPasswordDto, TokenDto, User
  * @param {LoginDto} data 登录参数。
  */
 export function login(data: LoginDto) {
-  return request.post<ApiResult<TokenDto>>('/Auth/login', data)
+  return request.post<ApiResult<TokenDto>>('/Auth/login', data).then((res) => {
+    invalidateHttpCache()
+    return res
+  })
 }
 
 /**
@@ -17,7 +21,10 @@ export function login(data: LoginDto) {
  * @param {RegisterDto} data 注册参数。
  */
 export function register(data: RegisterDto) {
-  return request.post<ApiResult<TokenDto>>('/Auth/register', data)
+  return request.post<ApiResult<TokenDto>>('/Auth/register', data).then((res) => {
+    invalidateHttpCache()
+    return res
+  })
 }
 
 /**
@@ -25,19 +32,28 @@ export function register(data: RegisterDto) {
  * @param {ResetPasswordDto} data 重置参数。
  */
 export function resetPassword(data: ResetPasswordDto) {
-  return request.post<ApiResult<boolean>>('/Auth/reset-password', data)
+  return request.post<ApiResult<boolean>>('/Auth/reset-password', data).then((res) => {
+    invalidateHttpCache()
+    return res
+  })
 }
 
 /**
  * @description 获取当前已登录用户信息（需 JWT）。
  */
 export function getMe() {
-  return request.get<ApiResult<UserProfileDto>>('/Auth/me')
+  return cachedGet<ApiResult<UserProfileDto>>('/Auth/me', undefined, {
+    ttlMs: 45_000,
+    tags: ['auth:me', 'user:profile'],
+  })
 }
 
 /**
  * @description 退出登录（清理后端缓存）。
  */
 export function logout() {
-  return request.post<ApiResult<boolean>>('/Auth/logout')
+  return request.post<ApiResult<boolean>>('/Auth/logout').then((res) => {
+    invalidateHttpCache()
+    return res
+  })
 }

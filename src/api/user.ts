@@ -2,14 +2,22 @@
  * @file 用户管理接口封装。
  */
 import request from './request'
+import { cachedGet, invalidateHttpCache } from './httpCache'
 import type { ApiResult, PageResult, UserCreateDto, UserDataDeletionDto, UserDto, UserFollowStatusDto, UserListItemDto, UserPrivacyConsentUpdateDto, UserProfileUpdateDto, UserPublicProfileDto, UserQueryDto, UserUpdateDto } from './types'
+
+const userCacheTags = ['user:profile', 'user:list', 'user:follow']
+
+const invalidateUserCaches = () => invalidateHttpCache(userCacheTags)
 
 /**
  * @description 创建用户（需要 sys:user:add 权限）。
  * @param {UserCreateDto} data 用户创建参数。
  */
 export function createUser(data: UserCreateDto) {
-  return request.post<ApiResult<string>>('/User', data)
+  return request.post<ApiResult<string>>('/User', data).then((res) => {
+    invalidateUserCaches()
+    return res
+  })
 }
 
 /**
@@ -17,11 +25,17 @@ export function createUser(data: UserCreateDto) {
  * @param {number} id 用户 ID。
  */
 export function getUserInfo(id: string) {
-  return request.get<ApiResult<UserDto>>(`/User/${id}`)
+  return cachedGet<ApiResult<UserDto>>(`/User/${id}`, undefined, {
+    ttlMs: 45_000,
+    tags: ['user:profile'],
+  })
 }
 
 export function getPublicUserProfile(id: string) {
-  return request.get<ApiResult<UserPublicProfileDto>>(`/User/public/${id}`)
+  return cachedGet<ApiResult<UserPublicProfileDto>>(`/User/public/${id}`, undefined, {
+    ttlMs: 45_000,
+    tags: ['user:profile'],
+  })
 }
 
 /**
@@ -29,7 +43,10 @@ export function getPublicUserProfile(id: string) {
  * @param {UserQueryDto} params 查询参数。
  */
 export function getUserPage(params: UserQueryDto) {
-  return request.get<ApiResult<PageResult<UserListItemDto>>>('/User', { params })
+  return cachedGet<ApiResult<PageResult<UserListItemDto>>>('/User', { params }, {
+    ttlMs: 20_000,
+    tags: ['user:list'],
+  })
 }
 
 /**
@@ -37,7 +54,10 @@ export function getUserPage(params: UserQueryDto) {
  * @param {UserUpdateDto} data 更新参数。
  */
 export function updateUser(data: UserUpdateDto) {
-  return request.put<ApiResult<boolean>>('/User', data)
+  return request.put<ApiResult<boolean>>('/User', data).then((res) => {
+    invalidateUserCaches()
+    return res
+  })
 }
 
 /**
@@ -45,7 +65,10 @@ export function updateUser(data: UserUpdateDto) {
  * @param {UserProfileUpdateDto} data 个人资料更新参数。
  */
 export function updateProfile(data: UserProfileUpdateDto) {
-  return request.put<ApiResult<boolean>>('/User/profile', data)
+  return request.put<ApiResult<boolean>>('/User/profile', data).then((res) => {
+    invalidateUserCaches()
+    return res
+  })
 }
 
 /**
@@ -57,6 +80,9 @@ export function uploadAvatar(file: File) {
   form.append('file', file)
   return request.post<ApiResult<string>>('/User/avatar', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
+  }).then((res) => {
+    invalidateUserCaches()
+    return res
   })
 }
 
@@ -65,25 +91,43 @@ export function uploadAvatar(file: File) {
  * @param {number} id 用户 ID。
  */
 export function deleteUser(id: string) {
-  return request.delete<ApiResult<boolean>>(`/User/${id}`)
+  return request.delete<ApiResult<boolean>>(`/User/${id}`).then((res) => {
+    invalidateUserCaches()
+    return res
+  })
 }
 
 export function updatePrivacyConsent(data: UserPrivacyConsentUpdateDto) {
-  return request.put<ApiResult<boolean>>('/User/privacy-consent', data)
+  return request.put<ApiResult<boolean>>('/User/privacy-consent', data).then((res) => {
+    invalidateUserCaches()
+    return res
+  })
 }
 
 export function deleteCurrentUserData(data: UserDataDeletionDto) {
-  return request.post<ApiResult<boolean>>('/User/delete-data', data)
+  return request.post<ApiResult<boolean>>('/User/delete-data', data).then((res) => {
+    invalidateUserCaches()
+    return res
+  })
 }
 
 export function getFollowStatus(userId: string) {
-  return request.get<ApiResult<UserFollowStatusDto>>(`/User/follows/${userId}`)
+  return cachedGet<ApiResult<UserFollowStatusDto>>(`/User/follows/${userId}`, undefined, {
+    ttlMs: 15_000,
+    tags: ['user:follow'],
+  })
 }
 
 export function followUser(userId: string) {
-  return request.post<ApiResult<boolean>>(`/User/follows/${userId}`)
+  return request.post<ApiResult<boolean>>(`/User/follows/${userId}`).then((res) => {
+    invalidateUserCaches()
+    return res
+  })
 }
 
 export function unfollowUser(userId: string) {
-  return request.delete<ApiResult<boolean>>(`/User/follows/${userId}`)
+  return request.delete<ApiResult<boolean>>(`/User/follows/${userId}`).then((res) => {
+    invalidateUserCaches()
+    return res
+  })
 }

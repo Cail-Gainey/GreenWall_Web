@@ -2,6 +2,7 @@
  * @file 贡献图图案社区接口封装。
  */
 import request from './request'
+import { cachedGet, invalidateHttpCache } from './httpCache'
 import type {
   ApiResult,
   PageResult,
@@ -9,6 +10,9 @@ import type {
   PatternCommentDto,
   PatternCreateDto,
   PatternDetailDto,
+  PatternExportRequestDto,
+  PatternExportTaskDto,
+  PatternJsonPayload,
   PatternListItemDto,
   PatternUpdateDto,
 } from './types'
@@ -28,7 +32,10 @@ export function getCommunityPatterns(params: {
   sort?: PatternSort
   year?: number
 }) {
-  return request.get<ApiResult<PageResult<PatternListItemDto>>>('/patterns', { params })
+  return cachedGet<ApiResult<PageResult<PatternListItemDto>>>('/patterns', { params }, {
+    ttlMs: 45_000,
+    tags: ['pattern:list'],
+  })
 }
 
 /**
@@ -36,7 +43,10 @@ export function getCommunityPatterns(params: {
  * @param id 图案 ID
  */
 export function getPatternDetail(id: string) {
-  return request.get<ApiResult<PatternDetailDto>>(`/patterns/${id}`)
+  return cachedGet<ApiResult<PatternDetailDto>>(`/patterns/${id}`, undefined, {
+    ttlMs: 20_000,
+    tags: ['pattern:detail'],
+  })
 }
 
 /**
@@ -44,7 +54,10 @@ export function getPatternDetail(id: string) {
  * @param params 分页参数。
  */
 export function getMyPatterns(params: { pageIndex?: number; pageSize?: number }) {
-  return request.get<ApiResult<PageResult<PatternListItemDto>>>('/patterns/mine', { params })
+  return cachedGet<ApiResult<PageResult<PatternListItemDto>>>('/patterns/mine', { params }, {
+    ttlMs: 35_000,
+    tags: ['pattern:list', 'pattern:mine'],
+  })
 }
 
 /**
@@ -52,7 +65,10 @@ export function getMyPatterns(params: { pageIndex?: number; pageSize?: number })
  * @param params 分页参数。
  */
 export function getMyFavoritePatterns(params: { pageIndex?: number; pageSize?: number }) {
-  return request.get<ApiResult<PageResult<PatternListItemDto>>>('/patterns/favorites/mine', { params })
+  return cachedGet<ApiResult<PageResult<PatternListItemDto>>>('/patterns/favorites/mine', { params }, {
+    ttlMs: 35_000,
+    tags: ['pattern:list', 'pattern:favorite'],
+  })
 }
 
 /**
@@ -61,15 +77,20 @@ export function getMyFavoritePatterns(params: { pageIndex?: number; pageSize?: n
  * @param params 分页参数。
  */
 export function getUserPatterns(userId: string, params: { pageIndex?: number; pageSize?: number }) {
-  return request.get<ApiResult<PageResult<PatternListItemDto>>>(`/patterns/users/${userId}`, { params })
+  return cachedGet<ApiResult<PageResult<PatternListItemDto>>>(`/patterns/users/${userId}`, { params }, {
+    ttlMs: 35_000,
+    tags: ['pattern:list', 'pattern:user'],
+  })
 }
 
 /**
  * @description 上传图案到社区。
  * @param data 创建参数
  */
-export function createPattern(data: PatternCreateDto) {
-  return request.post<ApiResult<string>>('/patterns', data)
+export async function createPattern(data: PatternCreateDto) {
+  const res = await request.post<ApiResult<string>>('/patterns', data)
+  invalidatePatternCaches()
+  return res
 }
 
 /**
@@ -77,48 +98,60 @@ export function createPattern(data: PatternCreateDto) {
  * @param id 图案 ID
  * @param data 更新参数
  */
-export function updatePattern(id: string, data: PatternUpdateDto) {
-  return request.put<ApiResult<boolean>>(`/patterns/${id}`, data)
+export async function updatePattern(id: string, data: PatternUpdateDto) {
+  const res = await request.put<ApiResult<boolean>>(`/patterns/${id}`, data)
+  invalidatePatternCaches()
+  return res
 }
 
 /**
  * @description 删除社区图案。
  * @param id 图案 ID
  */
-export function deletePattern(id: string) {
-  return request.delete<ApiResult<boolean>>(`/patterns/${id}`)
+export async function deletePattern(id: string) {
+  const res = await request.delete<ApiResult<boolean>>(`/patterns/${id}`)
+  invalidatePatternCaches()
+  return res
 }
 
 /**
  * @description 点赞图案。
  * @param id 图案 ID
  */
-export function likePattern(id: string) {
-  return request.post<ApiResult<boolean>>(`/patterns/${id}/like`)
+export async function likePattern(id: string) {
+  const res = await request.post<ApiResult<boolean>>(`/patterns/${id}/like`)
+  invalidatePatternCaches()
+  return res
 }
 
 /**
  * @description 取消点赞。
  * @param id 图案 ID
  */
-export function unlikePattern(id: string) {
-  return request.delete<ApiResult<boolean>>(`/patterns/${id}/like`)
+export async function unlikePattern(id: string) {
+  const res = await request.delete<ApiResult<boolean>>(`/patterns/${id}/like`)
+  invalidatePatternCaches()
+  return res
 }
 
 /**
  * @description 收藏图案。
  * @param id 图案 ID
  */
-export function favoritePattern(id: string) {
-  return request.post<ApiResult<boolean>>(`/patterns/${id}/favorite`)
+export async function favoritePattern(id: string) {
+  const res = await request.post<ApiResult<boolean>>(`/patterns/${id}/favorite`)
+  invalidatePatternCaches()
+  return res
 }
 
 /**
  * @description 取消收藏。
  * @param id 图案 ID
  */
-export function unfavoritePattern(id: string) {
-  return request.delete<ApiResult<boolean>>(`/patterns/${id}/favorite`)
+export async function unfavoritePattern(id: string) {
+  const res = await request.delete<ApiResult<boolean>>(`/patterns/${id}/favorite`)
+  invalidatePatternCaches()
+  return res
 }
 
 /**
@@ -130,7 +163,10 @@ export function getPatternComments(
   id: string,
   params: { pageIndex?: number; pageSize?: number; parentId?: string | number },
 ) {
-  return request.get<ApiResult<PageResult<PatternCommentDto>>>(`/patterns/${id}/comments`, { params })
+  return cachedGet<ApiResult<PageResult<PatternCommentDto>>>(`/patterns/${id}/comments`, { params }, {
+    ttlMs: 15_000,
+    tags: ['pattern:comment'],
+  })
 }
 
 /**
@@ -138,8 +174,10 @@ export function getPatternComments(
  * @param id 图案 ID
  * @param data 评论内容
  */
-export function createPatternComment(id: string, data: PatternCommentCreateDto) {
-  return request.post<ApiResult<string>>(`/patterns/${id}/comments`, data)
+export async function createPatternComment(id: string, data: PatternCommentCreateDto) {
+  const res = await request.post<ApiResult<string>>(`/patterns/${id}/comments`, data)
+  invalidatePatternCaches()
+  return res
 }
 
 /**
@@ -147,8 +185,10 @@ export function createPatternComment(id: string, data: PatternCommentCreateDto) 
  * @param id 图案 ID
  * @param commentId 评论 ID
  */
-export function likePatternComment(id: string, commentId: string) {
-  return request.post<ApiResult<boolean>>(`/patterns/${id}/comments/${commentId}/like`)
+export async function likePatternComment(id: string, commentId: string) {
+  const res = await request.post<ApiResult<boolean>>(`/patterns/${id}/comments/${commentId}/like`)
+  invalidatePatternCaches()
+  return res
 }
 
 /**
@@ -156,6 +196,42 @@ export function likePatternComment(id: string, commentId: string) {
  * @param id 图案 ID
  * @param commentId 评论 ID
  */
-export function unlikePatternComment(id: string, commentId: string) {
-  return request.delete<ApiResult<boolean>>(`/patterns/${id}/comments/${commentId}/like`)
+export async function unlikePatternComment(id: string, commentId: string) {
+  const res = await request.delete<ApiResult<boolean>>(`/patterns/${id}/comments/${commentId}/like`)
+  invalidatePatternCaches()
+  return res
+}
+
+export function createPatternExport(id: string, data: PatternExportRequestDto) {
+  return request.post<ApiResult<PatternExportTaskDto>>(`/patterns/${id}/exports`, data)
+}
+
+export function getPatternExportTask(taskId: string) {
+  return request.get<ApiResult<PatternExportTaskDto>>(`/patterns/exports/${taskId}`)
+}
+
+export function downloadPatternExport(taskId: string) {
+  return request.get<Blob>(`/patterns/exports/${taskId}/download`, { responseType: 'blob' })
+}
+
+export function exportPatternJson(id: string) {
+  return request.get<Blob>(`/patterns/${id}/exports/json`, { responseType: 'blob' })
+}
+
+export async function importPatternFromJson(data: PatternJsonPayload) {
+  const res = await request.post<ApiResult<string>>('/patterns/import', data)
+  invalidatePatternCaches()
+  return res
+}
+
+export function invalidatePatternCaches() {
+  invalidateHttpCache(['pattern:list', 'pattern:mine', 'pattern:user', 'pattern:favorite', 'pattern:detail', 'pattern:comment'])
+}
+
+export async function precachePatternCommunityData() {
+  await Promise.allSettled([
+    getCommunityPatterns({ pageIndex: 1, pageSize: 12, sort: 'view' }),
+    getCommunityPatterns({ pageIndex: 1, pageSize: 12, sort: 'like' }),
+    getCommunityPatterns({ pageIndex: 1, pageSize: 12, sort: 'favorite' }),
+  ])
 }
