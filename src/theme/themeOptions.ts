@@ -3,6 +3,9 @@ import type { DropdownOption } from 'naive-ui'
 import { getPalette } from './palette'
 import type { Theme } from '../composables/useTheme'
 
+/**
+ * @description 主题键与中文名称的映射表。
+ */
 export const themeLabelMap: Record<Theme, string> = {
   light: '浅色',
   dark: '暗色',
@@ -29,8 +32,17 @@ const previewStyleMap: Record<Theme, string> = {
   auto: 'background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 48%, #1f2937 52%, #111827 100%);',
 }
 
+/**
+ * @description 根据主题键获取中文显示名称。
+ * @param {string} [theme] 主题键。
+ * @returns {string} 中文主题名称。
+ */
 export const getThemeLabel = (theme?: string) => themeLabelMap[(theme as Theme) || 'auto'] || String(theme || '系统')
 
+/**
+ * @description 创建主题下拉选项，包含预览色块与中文标签。
+ * @returns {DropdownOption[]} 主题下拉选项列表。
+ */
 export const createThemeDropdownOptions = (): DropdownOption[] => themeOrder.map((key) => ({
   key,
   label: () => h('div', { class: 'theme-option-label' }, [
@@ -42,4 +54,9 @@ export const createThemeDropdownOptions = (): DropdownOption[] => themeOrder.map
   ]),
 }))
 
+/**
+ * @description 获取主题预览方块的内联样式字符串。
+ * @param {Theme | string} theme 主题键。
+ * @returns {string} 可直接绑定到 style 的样式字符串。
+ */
 export const getThemeSwatchStyle = (theme: Theme | string) => `${previewStyleMap[theme as Theme] || previewStyleMap.auto} width: 12px; height: 12px; border-radius: 3px; display: inline-block; border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2); flex-shrink: 0;`

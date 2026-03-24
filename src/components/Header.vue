@@ -33,8 +33,15 @@ const route = useRoute()
 const { currentTheme, setTheme } = useTheme()
 const { hasPermission, hasRole } = usePermissionStore()
 
+/**
+ * @description 主题下拉菜单选项。
+ */
 const themeOptions = createThemeDropdownOptions()
 
+/**
+ * @description 当前登录用户的快捷操作菜单。
+ * @returns {{ label: string; key: string }[]} 菜单项列表。
+ */
 const profileOptions = computed(() => {
   const options: Array<{ label: string; key: string }> = []
   options.push({ label: '个人主页', key: 'home' })
@@ -50,10 +57,18 @@ const avatarSrc = computed(() => resolveAvatar(props.user?.avatar))
 const currentThemeLabel = computed(() => getThemeLabel(currentTheme.value))
 const currentThemeSwatchStyle = computed(() => getThemeSwatchStyle(currentTheme.value))
 
+/**
+ * @description 处理主题切换。
+ * @param {string | number} key 选中的主题键。
+ */
 function handleThemeSelect(key: string | number) {
   setTheme(key as Theme)
 }
 
+/**
+ * @description 处理个人菜单选择，包括主页、资料与退出登录。
+ * @param {string | number} key 选中的菜单键。
+ */
 function handleProfileSelect(key: string | number) {
   if (key === 'home') {
     router.push('/me')
@@ -66,11 +81,17 @@ function handleProfileSelect(key: string | number) {
   if (key === 'logout') emit('logout')
 }
 
+/**
+ * @description 跳转到社区页面。
+ */
 function goCommunity() {
   if (route.path.startsWith('/community')) return
   router.push('/community')
 }
 
+/**
+ * @description 跳转到隐私条款页面。
+ */
 function goPrivacy() {
   if (route.path.startsWith('/privacy')) return
   router.push('/privacy')

@@ -136,6 +136,11 @@ const showImport = computed(() => !isLoggedIn.value || canImport.value)
 const loginHint = computed(() => (isLoggedIn.value ? '' : '请先登录'))
 const hasMoreComments = computed(() => comments.value.length < commentTotal.value)
 
+/**
+ * @description 获取指定父评论的回复状态，不存在时自动初始化。
+ * @param {string} parentId 父评论 ID。
+ * @returns 回复状态对象。
+ */
 const getReplyState = (parentId: string) => {
   if (!replyStates.value[parentId]) {
     replyStates.value[parentId] = {
@@ -165,6 +170,10 @@ const yearOptions = computed(() => {
 })
 
 
+/**
+ * @description 加载当前详情作者的关注状态。
+ * @param {string} [creatorId] 作者用户 ID。
+ */
 const loadFollowStatus = async (creatorId?: string) => {
   if (!creatorId || !isLoggedIn.value) {
     followStatus.value = null
@@ -185,6 +194,9 @@ const loadFollowStatus = async (creatorId?: string) => {
   }
 }
 
+/**
+ * @description 切换详情作者的关注状态。
+ */
 const toggleFollowCreator = async () => {
   if (!detail.value) return
   if (!isLoggedIn.value) {
@@ -207,6 +219,10 @@ const toggleFollowCreator = async () => {
   }
 }
 
+/**
+ * @description 跳转到用户主页；若为本人则跳转到“我的主页”。
+ * @param {string} [userId] 目标用户 ID。
+ */
 const goUserHome = (userId?: string) => {
   if (!userId) return
   if (permissionStore.user?.id === userId) {
@@ -234,6 +250,9 @@ const goPublish = () => {
   publishVisible.value = true
 }
 
+/**
+ * @description 加载社区图案列表。
+ */
 const loadPatterns = async () => {
   loading.value = true
   try {
@@ -254,6 +273,10 @@ const loadPatterns = async () => {
   }
 }
 
+/**
+ * @description 打开图案详情弹窗并加载评论、关注状态等附加数据。
+ * @param {PatternListItemDto} item 图案列表项。
+ */
 const openDetail = async (item: PatternListItemDto) => {
   detailVisible.value = true
   detailLoading.value = true
@@ -279,6 +302,10 @@ const openDetail = async (item: PatternListItemDto) => {
   }
 }
 
+/**
+ * @description 加载图案评论列表，可选择是否重置分页。
+ * @param {boolean} [reset=false] 是否重置评论分页与数据。
+ */
 const loadComments = async (reset = false) => {
   if (!detail.value) return
   if (reset) {
@@ -320,6 +347,11 @@ const loadMoreComments = async () => {
   await loadComments(false)
 }
 
+/**
+ * @description 加载指定评论的回复列表。
+ * @param {string} parentId 父评论 ID。
+ * @param {boolean} [reset=false] 是否重置回复分页。
+ */
 const loadReplies = async (parentId: string, reset = false) => {
   if (!detail.value) return
   const state = getReplyState(parentId)
@@ -368,6 +400,9 @@ const handleCommentScroll = () => {
   }
 }
 
+/**
+ * @description 提交一级评论。
+ */
 const submitComment = async () => {
   if (!detail.value) return
   if (!isLoggedIn.value) {
@@ -423,6 +458,10 @@ const cancelReply = () => {
   replyContent.value = ''
 }
 
+/**
+ * @description 提交回复评论。
+ * @param {string} parentId 父评论 ID。
+ */
 const submitReply = async (parentId: string) => {
   if (!detail.value) return
   if (!isLoggedIn.value) {
@@ -494,6 +533,10 @@ const toggleCommentLike = async (item: PatternCommentDto) => {
   }
 }
 
+/**
+ * @description 切换图案点赞状态。
+ * @param {PatternListItemDto} item 目标图案。
+ */
 const toggleLike = async (item: PatternListItemDto) => {
   if (!isLoggedIn.value) {
     message.warning('请先登录后再操作')
@@ -523,6 +566,10 @@ const toggleLike = async (item: PatternListItemDto) => {
   }
 }
 
+/**
+ * @description 切换图案收藏状态。
+ * @param {PatternListItemDto} item 目标图案。
+ */
 const toggleFavorite = async (item: PatternListItemDto) => {
   if (!isLoggedIn.value) {
     message.warning('请先登录后再操作')
@@ -552,6 +599,10 @@ const toggleFavorite = async (item: PatternListItemDto) => {
   }
 }
 
+/**
+ * @description 确认并导入图案到当前编辑器。
+ * @param {PatternListItemDto} item 待导入图案。
+ */
 const confirmImport = (item: PatternListItemDto) => {
   if (!isLoggedIn.value) {
     message.warning('请先登录后再操作')
@@ -579,6 +630,9 @@ const confirmImport = (item: PatternListItemDto) => {
   })
 }
 
+/**
+ * @description 删除当前详情中的图案。
+ */
 const removePattern = () => {
   if (!detail.value) return
   dialog.warning({
@@ -599,6 +653,9 @@ const removePattern = () => {
   })
 }
 
+/**
+ * @description 打开图案编辑弹窗并回填当前详情数据。
+ */
 const openEditModal = async () => {
   if (!detail.value) return
   editTitle.value = detail.value.title
@@ -609,6 +666,9 @@ const openEditModal = async () => {
   editVisible.value = true
 }
 
+/**
+ * @description 保存图案编辑结果。
+ */
 const saveEditPattern = async () => {
   if (!detail.value) return
   const title = editTitle.value.trim()
@@ -654,6 +714,9 @@ const saveEditPattern = async () => {
   }
 }
 
+/**
+ * @description 发布新的社区图案。
+ */
 const publishPattern = async () => {
   const title = publishTitle.value.trim()
   if (!title) {
@@ -1050,7 +1113,6 @@ onMounted(loadPatterns)
               </div>
             </n-spin>
           </div>
-        </div>
       </template>
     </PatternDetailModal>
 

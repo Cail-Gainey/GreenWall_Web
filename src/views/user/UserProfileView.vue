@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * @file 用户主页页面：支持查看个人/他人资料、作品浏览、关注与作品操作。
+ */
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -87,6 +90,10 @@ const loginHint = computed(() => (isLoggedIn.value ? '' : '请先登录'))
 
 
 
+/**
+ * @description 打开作品详情弹窗并同步列表中的最新统计数据。
+ * @param {PatternListItemDto} item 图案列表项。
+ */
 const openDetail = async (item: PatternListItemDto) => {
   detailVisible.value = true
   detailLoading.value = true
@@ -110,6 +117,10 @@ const openDetail = async (item: PatternListItemDto) => {
   }
 }
 
+/**
+ * @description 打开图案编辑弹窗并回填当前图案数据。
+ * @param {PatternListItemDto} item 待编辑图案。
+ */
 const openEditModal = (item: PatternListItemDto) => {
   editingPattern.value = item
   editTitle.value = item.title
@@ -120,6 +131,10 @@ const openEditModal = (item: PatternListItemDto) => {
   editVisible.value = true
 }
 
+/**
+ * @description 切换图案点赞状态。
+ * @param {PatternListItemDto} item 目标图案。
+ */
 const toggleLike = async (item: PatternListItemDto) => {
   if (!isLoggedIn.value) {
     message.warning('请先登录后再操作')
@@ -149,6 +164,10 @@ const toggleLike = async (item: PatternListItemDto) => {
   }
 }
 
+/**
+ * @description 切换图案收藏状态。
+ * @param {PatternListItemDto} item 目标图案。
+ */
 const toggleFavorite = async (item: PatternListItemDto) => {
   if (!isLoggedIn.value) {
     message.warning('请先登录后再操作')
@@ -178,6 +197,10 @@ const toggleFavorite = async (item: PatternListItemDto) => {
   }
 }
 
+/**
+ * @description 确认并导入图案到当前贡献图编辑器。
+ * @param {PatternListItemDto} item 待导入图案。
+ */
 const confirmImport = (item: PatternListItemDto) => {
   if (!isLoggedIn.value) {
     message.warning('请先登录后再操作')
@@ -205,6 +228,9 @@ const confirmImport = (item: PatternListItemDto) => {
   })
 }
 
+/**
+ * @description 删除当前详情中的图案。
+ */
 const removePattern = () => {
   if (!detail.value) return
   dialog.warning({
@@ -225,6 +251,10 @@ const removePattern = () => {
   })
 }
 
+/**
+ * @description 跳转到指定用户主页；若为当前用户则跳转到“我的主页”。
+ * @param {string} [targetUserId] 目标用户 ID。
+ */
 const goUserHome = (targetUserId?: string) => {
   if (!targetUserId) return
   if (permissionStore.user?.id === targetUserId) {
@@ -234,6 +264,9 @@ const goUserHome = (targetUserId?: string) => {
   router.push(`/users/${targetUserId}`)
 }
 
+/**
+ * @description 提交图案编辑结果并同步更新本地列表数据。
+ */
 const saveEditPattern = async () => {
   if (!editingPattern.value) return
   const title = editTitle.value.trim()
@@ -280,6 +313,9 @@ const saveEditPattern = async () => {
   }
 }
 
+/**
+ * @description 加载用户主页资料与作品列表。
+ */
 const loadPage = async () => {
   loading.value = true
   try {
@@ -305,6 +341,9 @@ const loadPage = async () => {
   }
 }
 
+/**
+ * @description 切换当前主页用户的关注状态。
+ */
 const toggleFollow = async () => {
   if (!profile.value || isMine.value) return
   if (!permissionStore.token) {
