@@ -128,19 +128,19 @@ const router = createRouter({
         {
           path: 'logs/oper',
           name: 'admin-oper-logs',
-          component: () => import('../views/admin/OperLogView.vue'),
+          component: () => import('../views/admin/logs/OperLogView.vue'),
           meta: { permission: 'sys:log:oper', title: '操作日志' }
         },
         {
           path: 'logs/login',
           name: 'admin-login-logs',
-          component: () => import('../views/admin/LoginLogView.vue'),
+          component: () => import('../views/admin/logs/LoginLogView.vue'),
           meta: { permission: 'sys:log:login', title: '登录日志' }
         },
         {
           path: 'logs/server',
           name: 'admin-server-logs',
-          component: () => import('../views/admin/ServerLogView.vue'),
+          component: () => import('../views/admin/logs/ServerLogView.vue'),
           meta: { permission: 'sys:log:server', title: '服务器日志' }
         }
       ]
