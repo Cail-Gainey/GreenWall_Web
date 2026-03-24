@@ -57,6 +57,11 @@ const profileOptions = computed(() => {
 const avatarSrc = computed(() => resolveAvatar(props.user?.avatar))
 const currentThemeLabel = computed(() => getThemeLabel(currentTheme.value))
 const currentThemeSwatchStyle = computed(() => getThemeSwatchStyle(currentTheme.value))
+const canVisitAdmin = computed(() => {
+  if (hasRole('admin')) return true
+  const adminPerms = ['sys:dashboard', 'sys:user:list', 'sys:role:list', 'sys:menu:list']
+  return adminPerms.some((perm) => hasPermission(perm))
+})
 
 /**
  * @description 处理主题切换。
@@ -120,7 +125,7 @@ function goPrivacy() {
         社区
       </n-button>
       <n-button quaternary size="small" @click="goPrivacy">隐私条款</n-button>
-      <n-button v-if="user && hasRole('admin')" quaternary size="small" @click="router.push('/admin')">
+      <n-button v-if="user && canVisitAdmin" quaternary size="small" @click="router.push('/admin')">
         管理后台
       </n-button>
       <n-dropdown :options="themeOptions" @select="handleThemeSelect">
