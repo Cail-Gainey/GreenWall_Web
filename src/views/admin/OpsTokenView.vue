@@ -3,12 +3,28 @@
  * @file 运维令牌管理视图。
  */
 import { h, onMounted, ref } from 'vue'
-import { NCard, NDataTable, NButton, NSpace, NModal, NForm, NFormItem, NInput, NSelect, NTag, NPagination, useMessage } from 'naive-ui'
+import {
+  NCard,
+  NDataTable,
+  NButton,
+  NSpace,
+  NModal,
+  NForm,
+  NFormItem,
+  NInput,
+  NSelect,
+  NTag,
+  NPagination,
+  NTooltip,
+  NIcon,
+  useMessage,
+} from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { usePermissionStore } from '../../stores/permission'
 import { getOpsTokenPage, createOpsToken, updateOpsToken, deleteOpsToken } from '../../api/opsToken'
 import type { OpsTokenDto, OpsTokenCreateDto, OpsTokenUpdateDto } from '../../api/types'
 import { TimeFormatter } from '../../utils/time'
+import { Pen, TrashCan, Renew, Copy, Search, Add } from '@vicons/carbon'
 
 const message = useMessage()
 const permissionStore = usePermissionStore()
@@ -64,10 +80,40 @@ const columns = ref<DataTableColumns<OpsTokenDto>>([
     render: (row) => {
       const actions: any[] = []
       if (hasPermission('sys:ops:token:edit')) {
-        actions.push(h(NButton, { size: 'tiny', quaternary: true, onClick: () => openEdit(row) }, { default: () => '编辑' }))
+        actions.push(
+          h(NTooltip, null, {
+            default: () => '编辑',
+            trigger: () =>
+              h(
+                NButton,
+                { size: 'small', quaternary: true, type: 'primary', class: 'action-btn', onClick: () => openEdit(row) },
+                {
+                  icon: () =>
+                    h(NIcon, null, {
+                      default: () => h(Pen),
+                    }),
+                },
+              ),
+          }),
+        )
       }
       if (hasPermission('sys:ops:token:delete')) {
-        actions.push(h(NButton, { size: 'tiny', quaternary: true, type: 'error', onClick: () => handleDelete(row) }, { default: () => '删除' }))
+        actions.push(
+          h(NTooltip, null, {
+            default: () => '删除',
+            trigger: () =>
+              h(
+                NButton,
+                { size: 'small', quaternary: true, type: 'error', class: 'action-btn', onClick: () => handleDelete(row) },
+                {
+                  icon: () =>
+                    h(NIcon, null, {
+                      default: () => h(TrashCan),
+                    }),
+                },
+              ),
+          }),
+        )
       }
       return actions.length ? h(NSpace, { size: 'small' }, { default: () => actions }) : h('span', { class: 'muted' }, '无权限')
     },
@@ -173,8 +219,26 @@ onMounted(fetchTokens)
         <n-select v-model:value="status" :options="statusOptions" style="width: 140px" />
       </n-space>
       <n-space>
-        <n-button @click="fetchTokens" :loading="loading">查询</n-button>
-        <n-button v-permission="'sys:ops:token:add'" type="primary" @click="openCreate">新增令牌</n-button>
+        <n-tooltip>
+          <template #trigger>
+            <n-button quaternary size="small" class="action-btn" @click="fetchTokens" :loading="loading">
+              <template #icon>
+                <n-icon><Search /></n-icon>
+              </template>
+            </n-button>
+          </template>
+          查询
+        </n-tooltip>
+        <n-tooltip v-permission="'sys:ops:token:add'">
+          <template #trigger>
+            <n-button type="primary" size="small" class="action-btn" @click="openCreate">
+              <template #icon>
+                <n-icon><Add /></n-icon>
+              </template>
+            </n-button>
+          </template>
+          新增令牌
+        </n-tooltip>
       </n-space>
     </n-space>
 
@@ -206,8 +270,26 @@ onMounted(fetchTokens)
               placeholder="编辑时留空表示不修改"
               style="width: 280px"
             />
-            <n-button size="small" secondary @click="generateToken">生成</n-button>
-            <n-button size="small" secondary @click="copyToken">复制</n-button>
+            <n-tooltip>
+              <template #trigger>
+                <n-button quaternary size="small" class="action-btn" @click="generateToken">
+                  <template #icon>
+                    <n-icon><Renew /></n-icon>
+                  </template>
+                </n-button>
+              </template>
+              生成令牌
+            </n-tooltip>
+            <n-tooltip>
+              <template #trigger>
+                <n-button quaternary size="small" class="action-btn" @click="copyToken">
+                  <template #icon>
+                    <n-icon><Copy /></n-icon>
+                  </template>
+                </n-button>
+              </template>
+              复制令牌
+            </n-tooltip>
           </n-space>
         </n-form-item>
         <n-form-item label="状态">
@@ -230,5 +312,13 @@ onMounted(fetchTokens)
 <style scoped>
 .muted {
   color: var(--color-text-muted);
+}
+
+.action-btn {
+  padding: 4px;
+}
+
+.action-btn :deep(.n-button__icon) {
+  font-size: 18px;
 }
 </style>

@@ -592,8 +592,6 @@ export interface ServerMonitorDto {
  */
 export interface SystemSettingsDto {
   allowRegister: boolean
-  forceOpsToken: boolean
-  opsToken?: string
   emailVerifyEnabled: boolean
   githubOAuthEnabled: boolean
   dataMigrationLastTime?: string
@@ -605,8 +603,6 @@ export interface SystemSettingsDto {
  */
 export interface SystemSettingsUpdateDto {
   allowRegister: boolean
-  forceOpsToken: boolean
-  opsToken?: string
   emailVerifyEnabled: boolean
   githubOAuthEnabled: boolean
   autoDataMigrationOnStartup: boolean
