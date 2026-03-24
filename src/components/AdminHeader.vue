@@ -28,8 +28,15 @@ const router = useRouter();
 const { currentTheme, setTheme } = useTheme();
 const { hasPermission } = usePermissionStore();
 
+/**
+ * @description 管理端主题下拉菜单选项。
+ */
 const themeOptions = createThemeDropdownOptions();
 
+/**
+ * @description 管理端用户快捷菜单。
+ * @returns {{ label: string; key: string }[]} 菜单项列表。
+ */
 const profileOptions = computed(() => {
     const options: Array<{ label: string; key: string }> = [];
     if (hasPermission("app:profile:view")) {
@@ -43,10 +50,18 @@ const avatarSrc = computed(() => resolveAvatar(props.user?.avatar));
 const currentThemeLabel = computed(() => getThemeLabel(currentTheme.value));
 const currentThemeSwatchStyle = computed(() => getThemeSwatchStyle(currentTheme.value));
 
+/**
+ * @description 处理管理端主题切换。
+ * @param {string | number} key 选中的主题键。
+ */
 function handleThemeSelect(key: string | number) {
     setTheme(key as Theme);
 }
 
+/**
+ * @description 处理管理端用户菜单选择。
+ * @param {string | number} key 选中的菜单键。
+ */
 function handleProfileSelect(key: string | number) {
     if (key === "profile") {
         emit("openProfile");

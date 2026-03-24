@@ -37,12 +37,19 @@ const adminTabsStore = useAdminTabsStore()
 const { currentTheme, setTheme } = useTheme()
 const showProfile = ref(false)
 
+/**
+ * @description 组件挂载时加载权限与菜单数据。
+ */
 onMounted(async () => {
   if (!isLoaded.value) {
     await loadPermission()
   }
 })
 
+/**
+ * @description 根据后端菜单树构建 Naive UI 侧边栏菜单。
+ * @returns {MenuOption[]} 菜单配置列表。
+ */
 const menuOptions = computed<MenuOption[]>(() => {
   const options: MenuOption[] = []
   const buildMenu = (menu: MenuTreeDto): MenuOption | null => {
@@ -106,6 +113,11 @@ const leafPaths = computed(() => {
   return paths
 })
 
+/**
+ * @description 根据当前路由计算应展开的父级菜单键。
+ * @param {string} targetPath 当前路由路径。
+ * @returns {string[]} 需要展开的菜单键列表。
+ */
 function resolveExpandedKeys(targetPath: string) {
   const keys: string[] = []
   const dfs = (options: MenuOption[], parents: string[]): boolean => {
@@ -129,8 +141,15 @@ function resolveExpandedKeys(targetPath: string) {
   return Array.from(new Set(keys))
 }
 
+/**
+ * @description 管理后台主题下拉菜单选项。
+ */
 const themeOptions = createThemeDropdownOptions()
 
+/**
+ * @description 管理后台用户快捷菜单。
+ * @returns {{ label: string; key: string }[]} 菜单项列表。
+ */
 const profileOptions = computed(() => {
   const options: Array<{ label: string; key: string }> = []
   if (hasPermission('app:profile:view')) {
@@ -144,15 +163,27 @@ const avatarSrc = computed(() => resolveAvatar(user.value?.avatar))
 const currentThemeLabel = computed(() => getThemeLabel(currentTheme.value))
 const currentThemeSwatchStyle = computed(() => getThemeSwatchStyle(currentTheme.value))
 
+/**
+ * @description 处理侧边栏菜单选择并跳转到目标路由。
+ * @param {string} key 菜单路由键。
+ */
 function handleSelect(key: string) {
   if (key.startsWith('dir-')) return
   router.push(key)
 }
 
+/**
+ * @description 处理管理后台主题切换。
+ * @param {string | number} key 选中的主题键。
+ */
 function handleThemeSelect(key: string | number) {
   setTheme(key as Theme)
 }
 
+/**
+ * @description 处理管理后台个人菜单选择。
+ * @param {string | number} key 选中的菜单键。
+ */
 function handleProfileSelect(key: string | number) {
   if (key === 'profile') {
     showProfile.value = true
@@ -184,6 +215,9 @@ watch(
   },
 )
 
+/**
+ * @description 执行退出登录并清理管理端本地状态。
+ */
 async function handleLogout() {
   const { reset } = usePermissionStore()
   try {
