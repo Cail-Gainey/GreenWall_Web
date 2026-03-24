@@ -45,6 +45,7 @@ const themeOptions = createThemeDropdownOptions()
 const profileOptions = computed(() => {
   const options: Array<{ label: string; key: string }> = []
   options.push({ label: '个人主页', key: 'home' })
+  options.push({ label: '我的收藏', key: 'favorites' })
   if (hasPermission('app:profile:view')) {
     options.push({ label: '个人信息', key: 'profile' })
   }
@@ -72,6 +73,10 @@ function handleThemeSelect(key: string | number) {
 function handleProfileSelect(key: string | number) {
   if (key === 'home') {
     router.push('/me')
+    return
+  }
+  if (key === 'favorites') {
+    router.push('/favorites')
     return
   }
   if (key === 'profile') {

@@ -49,6 +49,12 @@ const router = createRouter({
           component: () => import('../views/user/UserProfileView.vue')
         },
         {
+          path: 'favorites',
+          name: 'my-favorites',
+          component: () => import('../views/user/MyFavoritesView.vue'),
+          meta: { requiresAuth: true }
+        },
+        {
           path: 'users/:id',
           name: 'user-profile',
           component: () => import('../views/user/UserProfileView.vue')

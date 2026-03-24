@@ -39,10 +39,27 @@ export function getPatternDetail(id: string) {
   return request.get<ApiResult<PatternDetailDto>>(`/patterns/${id}`)
 }
 
+/**
+ * @description 获取当前用户发布的作品列表。
+ * @param params 分页参数。
+ */
 export function getMyPatterns(params: { pageIndex?: number; pageSize?: number }) {
   return request.get<ApiResult<PageResult<PatternListItemDto>>>('/patterns/mine', { params })
 }
 
+/**
+ * @description 获取当前用户收藏的作品列表。
+ * @param params 分页参数。
+ */
+export function getMyFavoritePatterns(params: { pageIndex?: number; pageSize?: number }) {
+  return request.get<ApiResult<PageResult<PatternListItemDto>>>('/patterns/favorites/mine', { params })
+}
+
+/**
+ * @description 获取指定用户主页作品列表。
+ * @param userId 目标用户 ID。
+ * @param params 分页参数。
+ */
 export function getUserPatterns(userId: string, params: { pageIndex?: number; pageSize?: number }) {
   return request.get<ApiResult<PageResult<PatternListItemDto>>>(`/patterns/users/${userId}`, { params })
 }
