@@ -79,7 +79,7 @@ const load = async () => {
   if (loading.value) return
   loading.value = true
   try {
-    const tasks = [getMySqlMonitor(), getRedisMonitor()]
+    const tasks: Promise<any>[] = [getMySqlMonitor(), getRedisMonitor()]
     if (canServer.value) tasks.push(getServerMonitor())
     const results = await Promise.allSettled(tasks)
     if (results[0]?.status === 'fulfilled') {

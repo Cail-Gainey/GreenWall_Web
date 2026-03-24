@@ -324,7 +324,7 @@ watch(mode, async (val) => {
         <n-space align="center" justify="space-between">
           <n-space align="center">
             <n-button v-if="!connected" type="primary" @click="connect">连接</n-button>
-            <n-button v-else @click="disconnect">断开</n-button>
+            <n-button v-else @click="() => disconnect()">断开</n-button>
             <n-button @click="togglePause">{{ paused ? '继续' : '暂停' }}</n-button>
             <n-button secondary @click="confirmClear">清空</n-button>
             <n-button secondary @click="downloadLogs">下载</n-button>

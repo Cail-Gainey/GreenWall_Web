@@ -61,6 +61,7 @@ export interface UserUpdateDto {
   id: string
   account: string
   nickName?: string
+  email?: string
   avatar?: string
   phone?: string
   sex?: number

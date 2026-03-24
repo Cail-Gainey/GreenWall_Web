@@ -108,14 +108,6 @@ const fillGrid = () => {
   })
 }
 
-const getYearMeta = (year: number) => {
-  const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0)
-  const daysInYear = isLeap ? 366 : 365
-  const startDate = new Date(year, 0, 1)
-  const startDayOfWeek = startDate.getDay()
-  return { daysInYear, startDayOfWeek }
-}
-
 const resizeGridForYear = (year: number) => {
   const targetCols = calcTotalCols(year)
   const targetRows = 7

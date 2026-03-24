@@ -436,7 +436,7 @@ watch([() => route.fullPath, pageIndex], () => {
       </n-grid>
 
       <div v-if="total > 0" class="pagination-bar">
-        <n-pagination v-model:page="pageIndex" v-model:page-size="pageSize" :page-size="12" :item-count="total" />
+        <n-pagination v-model:page="pageIndex" v-model:page-size="pageSize" :item-count="total" />
       </div>
     </n-spin>
 

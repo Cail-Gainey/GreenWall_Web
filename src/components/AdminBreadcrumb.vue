@@ -41,7 +41,7 @@ const breadcrumbs = computed(() => {
     pathTargets.push(route.path.replace(/^\/admin/, ''))
   }
   const list = findPath(menus.value || [], pathTargets) || []
-  const uniq = new Set<number>()
+  const uniq = new Set<string>()
   const items = list
     .filter((m) => m.menuType !== 3)
     .filter((m) => {
@@ -57,24 +57,24 @@ const breadcrumbs = computed(() => {
 
   if (items.length > 0) {
     if (items[0]?.label !== '管理后台') {
-      items.unshift({ label: '管理后台', path: '/admin', id: -1 })
+      items.unshift({ label: '管理后台', path: '/admin', id: '__admin-root__' })
     }
     return items
   }
 
   const matched = route.matched.map((record, index) => {
       if (record.path === '/admin') {
-        return { label: '管理后台', path: '/admin', id: -1 }
+        return { label: '管理后台', path: '/admin', id: '__admin-root__' }
       }
       return {
         label: record.meta?.title?.toString() || record.name?.toString() || record.path,
         path: record.path,
-        id: -10 - index,
+        id: `__matched-${index}__`,
       }
     })
 
   if (matched.length > 0) return matched
-  return [{ label: route.name?.toString() || '管理后台', path: route.path, id: 0 }]
+  return [{ label: route.name?.toString() || '管理后台', path: route.path, id: '__fallback__' }]
 })
 </script>
 

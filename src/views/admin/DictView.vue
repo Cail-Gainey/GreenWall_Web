@@ -3,7 +3,7 @@
  * @file 数据字典视图。
  */
 import { h, onMounted, ref } from 'vue'
-import { NCard, NDataTable, NButton, NSpace, NModal, NForm, NFormItem, NInput, NSelect, NTag, NPagination, NInputNumber, useMessage } from 'naive-ui'
+import { NCard, NDataTable, NButton, NSpace, NModal, NForm, NFormItem, NInput, NSelect, NSwitch, NTag, NPagination, NInputNumber, useMessage } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { usePermissionStore } from '../../stores/permission'
 import { getDictTypes, createDictType, updateDictType, deleteDictType, getDictData, createDictData, updateDictData, deleteDictData } from '../../api/dict'
@@ -334,7 +334,7 @@ onMounted(async () => {
           <n-input-number v-model:value="dataForm.sort" min="0" style="width: 160px;" />
         </n-form-item>
         <n-form-item label="默认">
-          <n-select v-model:value="dataForm.isDefault" :options="[{ label: '否', value: false }, { label: '是', value: true }]" />
+          <n-switch v-model:value="dataForm.isDefault" />
         </n-form-item>
         <n-form-item label="状态">
           <n-select v-model:value="dataForm.status" :options="statusOptions" />

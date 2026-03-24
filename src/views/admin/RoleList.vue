@@ -55,7 +55,7 @@ const permExpandedKeys = ref<string[]>([])
 const draggingIndex = ref<number | null>(null)
 const dragOverIndex = ref<number | null>(null)
 const tableDensity = ref<'compact' | 'default' | 'comfortable'>('default')
-const visibleColumns = ref<Array<'roleName' | 'roleCode' | 'status' | 'sort' | 'remark' | 'actions'>>([
+const visibleColumns = ref<Array<'roleName' | 'roleCode' | 'status' | 'sort' | 'remark' | 'createTime' | 'actions'>>([
   'roleName',
   'roleCode',
   'status',
