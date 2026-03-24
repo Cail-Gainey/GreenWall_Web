@@ -25,6 +25,7 @@ import {
   deletePattern,
   favoritePattern,
   getMyPatterns,
+  getPatternComments,
   getPatternDetail,
   getUserPatterns,
   likePattern,
@@ -33,9 +34,10 @@ import {
   updatePattern,
 } from '../../api/patternCommunity'
 import { followUser, getPublicUserProfile, unfollowUser } from '../../api/user'
-import type { PatternDetailDto, PatternListItemDto, UserProfileDto, UserPublicProfileDto } from '../../api/types'
+import type { PatternCommentDto, PatternDetailDto, PatternListItemDto, UserProfileDto, UserPublicProfileDto } from '../../api/types'
 import PatternEditorModal from '../../components/PatternEditorModal.vue'
-import PatternDetailModal from '../../components/PatternDetailModal.vue'
+import PatternDetailTemplate from '../../components/PatternDetailTemplate.vue'
+import PatternExportDialog from '../../components/PatternExportDialog.vue'
 import PatternCard from '../../components/PatternCard.vue'
 import { resolveAvatar, userAvatarFallback } from '../../utils/avatar'
 import { TimeFormatter } from '../../utils/time'
@@ -68,6 +70,10 @@ const editingPattern = ref<PatternListItemDto | null>(null)
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detail = ref<PatternDetailDto | null>(null)
+const comments = ref<PatternCommentDto[]>([])
+const commentLoading = ref(false)
+const exportDialogVisible = ref(false)
+const exportTarget = ref<PatternDetailDto | null>(null)
 
 const userId = computed(() => String(route.params.id || ''))
 const isMine = computed(() => route.name === 'me' || (!!permissionStore.user?.id && permissionStore.user.id === userId.value))
@@ -83,6 +89,7 @@ const canManageDetail = computed(() => {
   const currentId = permissionStore.user?.id
   return !!currentId && detail.value.creatorId === currentId
 })
+const canExportDetail = computed(() => canManageDetail.value)
 const showLike = computed(() => !isLoggedIn.value || canLike.value)
 const showFavorite = computed(() => !isLoggedIn.value || canFavorite.value)
 const showImport = computed(() => !isLoggedIn.value || canImport.value)
@@ -97,9 +104,11 @@ const loginHint = computed(() => (isLoggedIn.value ? '' : '请先登录'))
 const openDetail = async (item: PatternListItemDto) => {
   detailVisible.value = true
   detailLoading.value = true
+  comments.value = []
   try {
     const res = await getPatternDetail(item.id)
     detail.value = res.data.data
+    await loadComments(item.id)
     const idx = patterns.value.findIndex((p) => p.id === item.id)
     if (idx >= 0 && detail.value) {
       patterns.value[idx].viewCount = detail.value.viewCount
@@ -114,6 +123,18 @@ const openDetail = async (item: PatternListItemDto) => {
     message.error(e?.message || '加载详情失败')
   } finally {
     detailLoading.value = false
+  }
+}
+
+const loadComments = async (patternId: string) => {
+  commentLoading.value = true
+  try {
+    const res = await getPatternComments(patternId, { pageIndex: 1, pageSize: 20 })
+    comments.value = res.data.data.items || []
+  } catch {
+    comments.value = []
+  } finally {
+    commentLoading.value = false
   }
 }
 
@@ -195,6 +216,12 @@ const toggleFavorite = async (item: PatternListItemDto) => {
   } catch (e: any) {
     message.error(e?.message || '操作失败')
   }
+}
+
+const openExportDialog = () => {
+  if (!detail.value) return
+  exportTarget.value = detail.value
+  exportDialogVisible.value = true
 }
 
 /**
@@ -414,7 +441,7 @@ watch([() => route.fullPath, pageIndex], () => {
             :show-visibility-tag="isMine"
             :show-year-tag="false"
             :show-author="false"
-            :show-comment-count="false"
+            :show-comment-count="true"
             :show-date="true"
             :date-text="TimeFormatter.formatDate(item.createTime)"
             @card-click="openDetail"
@@ -440,7 +467,7 @@ watch([() => route.fullPath, pageIndex], () => {
       </div>
     </n-spin>
 
-    <PatternDetailModal
+    <PatternDetailTemplate
       v-model:show="detailVisible"
       :loading="detailLoading"
       :detail="detail"
@@ -450,15 +477,25 @@ watch([() => route.fullPath, pageIndex], () => {
       :show-like="showLike"
       :show-favorite="showFavorite"
       :show-import="showImport"
+      :show-share="canExportDetail"
       :can-manage-detail="canManageDetail"
       :can-edit="canEdit"
       :can-delete="canDelete"
+      :comments="comments"
+      :comment-loading="commentLoading"
       @like="detail && toggleLike(detail)"
       @favorite="detail && toggleFavorite(detail)"
       @import="detail && confirmImport(detail)"
+      @share="openExportDialog"
       @edit="detail && openEditModal(detail)"
       @delete="removePattern"
       @go-user="goUserHome"
+    </PatternDetailTemplate>
+
+    <PatternExportDialog
+      v-model:show="exportDialogVisible"
+      :pattern-id="exportTarget?.id"
+      :pattern-title="exportTarget?.title"
     />
 
     <PatternEditorModal
@@ -477,7 +514,7 @@ watch([() => route.fullPath, pageIndex], () => {
 </template>
 
 <style scoped>
-.user-profile-page { padding: 24px 28px 40px; display: flex; flex-direction: column; gap: 18px; }
+ .user-profile-page { padding: 24px 28px 40px; display: flex; flex-direction: column; gap: 18px; }
 .profile-card { border-radius: 16px; }
 .profile-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
 .profile-main { display: flex; gap: 16px; align-items: center; }

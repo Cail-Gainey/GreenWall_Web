@@ -7,11 +7,9 @@ import { useRouter } from 'vue-router'
 import {
   NAvatar,
   NButton,
-  NDivider,
   NGrid,
   NGridItem,
   NIcon,
-  NInput,
   NPagination,
   NSelect,
   NTooltip,
@@ -25,11 +23,10 @@ import {
   Add,
   Checkmark,
   CloudUpload,
-  Chat,
   Download,
   Favorite,
   FavoriteFilled,
-  Send,
+  Share,
   ThumbsUp,
   ThumbsUpFilled,
 } from '@vicons/carbon'
@@ -53,8 +50,9 @@ import type { PatternDetailDto, PatternListItemDto, PatternCommentDto, UserFollo
 import { usePermissionStore } from '../../stores/permission'
 import { usePatternImportStore } from '../../stores/patternImport'
 import PatternEditorModal from '../../components/PatternEditorModal.vue'
-import PatternDetailModal from '../../components/PatternDetailModal.vue'
+import PatternDetailTemplate from '../../components/PatternDetailTemplate.vue'
 import PatternCard from '../../components/PatternCard.vue'
+import PatternExportDialog from '../../components/PatternExportDialog.vue'
 import { calcTotalCols } from '../../utils/graph'
 import { TimeFormatter } from '../../utils/time'
 import { resolveAvatar, userAvatarFallback } from '../../utils/avatar'
@@ -92,7 +90,6 @@ const commentTotal = ref(0)
 const commentLoading = ref(false)
 const commentSubmitting = ref(false)
 const commentContent = ref('')
-const commentScrollRef = ref<HTMLElement | null>(null)
 const replySubmitting = ref(false)
 const replyContent = ref('')
 const activeReplyParentId = ref<string | null>(null)
@@ -115,6 +112,8 @@ const editVisibility = ref<'public' | 'followers' | 'private'>('public')
 const editGrid = ref<number[][]>([])
 const editSubmitting = ref(false)
 const editYear = ref(new Date().getFullYear())
+const exportDialogVisible = ref(false)
+const exportTarget = ref<PatternDetailDto | null>(null)
 
 const isLoggedIn = computed(() => !!permissionStore.token)
 const canManageDetail = computed(() => {
@@ -133,6 +132,7 @@ const showPublish = computed(() => !isLoggedIn.value || canPublish.value)
 const showLike = computed(() => !isLoggedIn.value || canLike.value)
 const showFavorite = computed(() => !isLoggedIn.value || canFavorite.value)
 const showImport = computed(() => !isLoggedIn.value || canImport.value)
+const showShare = computed(() => showImport.value)
 const loginHint = computed(() => (isLoggedIn.value ? '' : '请先登录'))
 const hasMoreComments = computed(() => comments.value.length < commentTotal.value)
 
@@ -217,6 +217,17 @@ const toggleFollowCreator = async () => {
   } finally {
     followLoading.value = false
   }
+}
+
+const openExportDialog = () => {
+  if (!detail.value) return
+  exportTarget.value = detail.value
+  exportDialogVisible.value = true
+}
+
+const openExportDialogByItem = (item: PatternListItemDto) => {
+  exportTarget.value = item
+  exportDialogVisible.value = true
 }
 
 /**
@@ -330,9 +341,6 @@ const loadComments = async (reset = false) => {
     comments.value = reset ? items : [...comments.value, ...items]
     if (reset) {
       await nextTick()
-      if (commentScrollRef.value) {
-        commentScrollRef.value.scrollTop = 0
-      }
     }
   } catch (e: any) {
     message.error(e?.message || '加载评论失败')
@@ -390,14 +398,6 @@ const loadMoreReplies = async (parentId: string) => {
   if (state.loading || state.items.length >= state.total) return
   state.pageIndex += 1
   await loadReplies(parentId)
-}
-
-const handleCommentScroll = () => {
-  const el = commentScrollRef.value
-  if (!el || commentLoading.value || !hasMoreComments.value) return
-  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 80) {
-    loadMoreComments()
-  }
 }
 
 /**
@@ -871,6 +871,18 @@ onMounted(loadPatterns)
                 </template>
                 {{ loginHint || '一键导入' }}
               </n-tooltip>
+              <n-tooltip v-if="showShare" trigger="hover">
+                <template #trigger>
+                  <span class="tooltip-wrapper">
+                    <n-button size="small" secondary circle :disabled="!isLoggedIn" @click.stop="openExportDialogByItem(item)">
+                      <n-icon size="16">
+                        <Share />
+                      </n-icon>
+                    </n-button>
+                  </span>
+                </template>
+                {{ loginHint || '导出与分享' }}
+              </n-tooltip>
             </template>
           </PatternCard>
         </n-grid-item>
@@ -887,7 +899,7 @@ onMounted(loadPatterns)
       />
     </div>
 
-    <PatternDetailModal
+    <PatternDetailTemplate
       v-model:show="detailVisible"
       :loading="detailLoading"
       :detail="detail"
@@ -897,18 +909,44 @@ onMounted(loadPatterns)
       :show-like="showLike"
       :show-favorite="showFavorite"
       :show-import="showImport"
+      :show-share="showShare"
       :can-manage-detail="canManageDetail"
       :can-edit="canEdit"
       :can-delete="canDelete"
+      :comments="comments"
+      :comment-loading="commentLoading"
+      :has-more-comments="hasMoreComments"
+      :can-comment="canComment"
+      :enable-comment-input="true"
+      :enable-reply="true"
+      v-model:comment-content="commentContent"
+      :comment-submitting="commentSubmitting"
+      :active-reply-parent-id="activeReplyParentId"
+      :active-reply-to-user-name="activeReplyToUserName"
+      v-model:reply-content="replyContent"
+      :reply-submitting="replySubmitting"
+      :reply-states="replyStates"
       @like="detail && toggleLike(detail)"
       @favorite="detail && toggleFavorite(detail)"
       @import="detail && confirmImport(detail)"
+      @share="openExportDialog"
       @edit="openEditModal"
       @delete="removePattern"
       @go-user="goUserHome"
+      @submit-comment="submitComment"
+      @comment-like="toggleCommentLike"
+      @show-reply="showReplyInput"
+      @toggle-replies="toggleReplies"
+      @cancel-reply="cancelReply"
+      @submit-reply="submitReply"
+      @load-more-replies="loadMoreReplies"
+      @load-more-comments="loadMoreComments"
     >
-      <template #actions-prefix>
-        <n-tooltip v-if="isLoggedIn && detail?.creatorId !== permissionStore.user?.id" trigger="hover">
+      <template #actions-prefix-extra>
+        <n-tooltip
+          v-if="isLoggedIn && detail?.creatorId !== permissionStore.user?.id"
+          trigger="hover"
+        >
           <template #trigger>
             <n-button size="small" secondary circle :loading="followLoading" @click="toggleFollowCreator">
               <n-icon size="16">
@@ -920,201 +958,12 @@ onMounted(loadPatterns)
           {{ followStatus?.isFollowing ? '取消关注' : '关注作者' }}
         </n-tooltip>
       </template>
-      <template #extra>
-        <n-divider />
-        <div class="comment-section">
-            <div class="comment-header">
-              <n-icon size="16">
-                <Chat />
-              </n-icon>
-              评论 {{ detail.commentCount }}
-            </div>
-            <div class="comment-input">
-              <n-input
-                v-model:value="commentContent"
-                type="textarea"
-                :autosize="{ minRows: 2, maxRows: 4 }"
-                placeholder="写下你的评论..."
-                :disabled="!isLoggedIn || !canComment"
-              />
-              <n-tooltip trigger="hover">
-                <template #trigger>
-                  <span class="tooltip-wrapper">
-                    <n-button
-                      type="primary"
-                      circle
-                      :loading="commentSubmitting"
-                      :disabled="!isLoggedIn || !canComment || commentSubmitting"
-                      @click="submitComment"
-                    >
-                      <n-icon size="16">
-                        <Send />
-                      </n-icon>
-                    </n-button>
-                  </span>
-                </template>
-                发表评论
-              </n-tooltip>
-            </div>
-            <div v-if="!isLoggedIn" class="comment-hint">请先登录后发表评论</div>
-            <div v-else-if="!canComment" class="comment-hint">当前账号无评论权限</div>
-
-            <n-spin :show="commentLoading">
-              <div v-if="comments.length === 0 && !commentLoading" class="comment-empty">暂无评论</div>
-              <div v-else class="comment-list-wrap" ref="commentScrollRef" @scroll="handleCommentScroll">
-                <div class="comment-list">
-                  <div v-for="item in comments" :key="item.id" class="comment-item">
-                    <n-avatar size="small" round color="transparent" class="user-avatar">
-                      <img
-                        :src="resolveAvatar(item.userAvatar)"
-                        :alt="item.userName"
-                        referrerpolicy="no-referrer"
-                        @error="($event.target as HTMLImageElement).src = userAvatarFallback"
-                      />
-                    </n-avatar>
-                    <div class="comment-body">
-                      <div class="comment-meta">
-                        <span class="comment-author">{{ item.userName }}</span>
-                        <span class="comment-time">{{ TimeFormatter.formatDateTime(item.createTime) }}</span>
-                      </div>
-                      <div class="comment-content">{{ item.content }}</div>
-                      <div class="comment-actions">
-                        <n-button
-                          quaternary
-                          size="tiny"
-                          :type="item.isLiked ? 'primary' : 'default'"
-                          :disabled="!isLoggedIn || !canComment"
-                          @click="toggleCommentLike(item)"
-                        >
-                          <template #icon>
-                            <n-icon size="14">
-                              <ThumbsUpFilled v-if="item.isLiked" />
-                              <ThumbsUp v-else />
-                            </n-icon>
-                          </template>
-                          {{ item.likeCount }}
-                        </n-button>
-                        <n-button
-                          quaternary
-                          size="tiny"
-                          :disabled="!isLoggedIn || !canComment"
-                          @click="showReplyInput(item.id, item.userId, item.userName)"
-                        >
-                          回复
-                        </n-button>
-                        <n-button
-                          v-if="item.replyCount > 0"
-                          text
-                          size="tiny"
-                          @click="toggleReplies(item)"
-                        >
-                          {{ getReplyState(item.id).visible ? '收起回复' : `查看 ${item.replyCount} 条回复` }}
-                        </n-button>
-                      </div>
-                      <div v-if="activeReplyParentId === item.id" class="reply-input">
-                        <n-input
-                          v-model:value="replyContent"
-                          type="textarea"
-                          :autosize="{ minRows: 2, maxRows: 3 }"
-                          :placeholder="activeReplyToUserName ? `回复 @${activeReplyToUserName}` : '写下你的回复...'"
-                          :disabled="replySubmitting"
-                        />
-                        <div class="reply-actions">
-                          <n-button size="tiny" @click="cancelReply">取消</n-button>
-                          <n-button
-                            type="primary"
-                            size="tiny"
-                            :loading="replySubmitting"
-                            :disabled="replySubmitting"
-                            @click="submitReply(item.id)"
-                          >
-                            发送
-                          </n-button>
-                        </div>
-                      </div>
-                      <div v-if="getReplyState(item.id).visible" class="reply-list">
-                        <n-spin :show="getReplyState(item.id).loading">
-                          <div
-                            v-if="getReplyState(item.id).items.length === 0 && !getReplyState(item.id).loading"
-                            class="reply-empty"
-                          >
-                            暂无回复
-                          </div>
-                          <div v-else class="reply-items">
-                            <div v-for="reply in getReplyState(item.id).items" :key="reply.id" class="reply-item">
-                              <n-avatar size="small" round color="transparent" class="user-avatar">
-                                <img
-                                  :src="resolveAvatar(reply.userAvatar)"
-                                  :alt="reply.userName"
-                                  referrerpolicy="no-referrer"
-                                  @error="($event.target as HTMLImageElement).src = userAvatarFallback"
-                                />
-                              </n-avatar>
-                              <div class="reply-body">
-                                <div class="comment-meta">
-                                  <span class="comment-author">{{ reply.userName }}</span>
-                                  <span class="comment-time">{{ TimeFormatter.formatDateTime(reply.createTime) }}</span>
-                                </div>
-                                <div class="comment-content">
-                                  <span v-if="reply.replyToUserName" class="reply-to">
-                                    回复 @{{ reply.replyToUserName }}：
-                                  </span>
-                                  {{ reply.content }}
-                                </div>
-                                <div class="comment-actions">
-                                  <n-button
-                                    quaternary
-                                    size="tiny"
-                                    :type="reply.isLiked ? 'primary' : 'default'"
-                                    :disabled="!isLoggedIn || !canComment"
-                                    @click="toggleCommentLike(reply)"
-                                  >
-                                    <template #icon>
-                                      <n-icon size="14">
-                                        <ThumbsUpFilled v-if="reply.isLiked" />
-                                        <ThumbsUp v-else />
-                                      </n-icon>
-                                    </template>
-                                    {{ reply.likeCount }}
-                                  </n-button>
-                                  <n-button
-                                    quaternary
-                                    size="tiny"
-                                    :disabled="!isLoggedIn || !canComment"
-                                    @click="showReplyInput(item.id, reply.userId, reply.userName)"
-                                  >
-                                    回复
-                                  </n-button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <div v-if="getReplyState(item.id).items.length > 0" class="reply-load">
-                            <span v-if="getReplyState(item.id).loading">加载中...</span>
-                            <span
-                              v-else-if="getReplyState(item.id).items.length < getReplyState(item.id).total"
-                              class="reply-more"
-                              @click="loadMoreReplies(item.id)"
-                            >
-                              加载更多回复
-                            </span>
-                            <span v-else>已加载全部</span>
-                          </div>
-                        </n-spin>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div class="comment-load">
-                  <span v-if="commentLoading">加载中...</span>
-                  <span v-else-if="hasMoreComments">下拉加载更多</span>
-                  <span v-else>已加载全部</span>
-                </div>
-              </div>
-            </n-spin>
-          </div>
-      </template>
-    </PatternDetailModal>
+    </PatternDetailTemplate>
+    <PatternExportDialog
+      v-model:show="exportDialogVisible"
+      :pattern-id="exportTarget?.id"
+      :pattern-title="exportTarget?.title"
+    />
 
     <PatternEditorModal
       v-model:show="editVisible"
@@ -1190,161 +1039,6 @@ onMounted(loadPatterns)
   justify-content: center;
   padding-top: 8px;
 }
-
-.comment-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.comment-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 600;
-  color: var(--color-text-main);
-}
-
-.comment-input {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-}
-
-.comment-input .n-input {
-  flex: 1;
-}
-
-.comment-hint {
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-.comment-empty {
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-.comment-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.comment-list-wrap {
-  max-height: 280px;
-  overflow-y: auto;
-  padding-right: 6px;
-}
-
-.comment-item {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-}
-
-.comment-body {
-  flex: 1;
-}
-
-.comment-meta {
-  display: flex;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--color-text-muted);
-  margin-bottom: 4px;
-}
-
-.comment-author {
-  font-weight: 600;
-  color: var(--color-text-main);
-}
-
-.comment-content {
-  font-size: 13px;
-  color: var(--color-text-main);
-  line-height: 1.6;
-  word-break: break-word;
-}
-
-.comment-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.reply-input {
-  margin-top: 8px;
-  padding: 10px;
-  border-radius: 10px;
-  background: var(--color-bg-light);
-  border: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.reply-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.reply-list {
-  margin-top: 8px;
-  padding-left: 36px;
-  border-left: 1px dashed var(--color-border);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.reply-items {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.reply-item {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-.reply-body {
-  flex: 1;
-}
-
-.reply-to {
-  color: var(--color-text-muted);
-  margin-right: 4px;
-}
-
-.reply-load {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  text-align: center;
-  padding: 6px 0 2px;
-}
-
-.reply-more {
-  color: var(--color-primary);
-  cursor: pointer;
-}
-
-.reply-empty {
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-.comment-load {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  text-align: center;
-  padding: 8px 0 4px;
-}
-
 
 @media (max-width: 1024px) {
   .community-page {
