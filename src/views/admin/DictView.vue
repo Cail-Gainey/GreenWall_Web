@@ -100,7 +100,10 @@ const dataColumns = ref<DataTableColumns<DictDataDto>>([
   {
     title: '默认',
     key: 'isDefault',
-    render: (row) => (row.isDefault ? '是' : '否'),
+    render: (row) =>
+      row.isDefault
+        ? h(NTag, { size: 'small', type: 'primary' }, { default: () => '默认' })
+        : h('span', { class: 'muted' }, '否'),
   },
   {
     title: '状态',

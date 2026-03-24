@@ -11,6 +11,7 @@ import { usePermissionStore } from '../stores/permission'
 import type { UserProfileDto } from '../api/types'
 import { resolveAvatar, userAvatarFallback } from '../utils/avatar'
 import logoUrl from '../assets/logo.png'
+import { useAppConfigStore } from '../stores/appConfig'
 
 const props = withDefaults(defineProps<{
   user: UserProfileDto | null
@@ -32,6 +33,7 @@ const route = useRoute()
 
 const { currentTheme, setTheme } = useTheme()
 const { hasPermission, hasRole } = usePermissionStore()
+const appConfigStore = useAppConfigStore()
 
 /**
  * @description 主题下拉菜单选项。
@@ -57,6 +59,8 @@ const profileOptions = computed(() => {
 const avatarSrc = computed(() => resolveAvatar(props.user?.avatar))
 const currentThemeLabel = computed(() => getThemeLabel(currentTheme.value))
 const currentThemeSwatchStyle = computed(() => getThemeSwatchStyle(currentTheme.value))
+const appName = computed(() => appConfigStore.getValue('app:name') || 'GreenWall')
+const appVersion = computed(() => appConfigStore.getValue('app:version'))
 const canVisitAdmin = computed(() => {
   if (hasRole('admin')) return true
   const adminPerms = ['sys:dashboard', 'sys:user:list', 'sys:role:list', 'sys:menu:list']
@@ -114,7 +118,8 @@ function goPrivacy() {
       <button v-if="showBrand !== false" class="brand" type="button" @click="router.push('/')">
         <img :src="logoUrl" alt="logo" class="brand-logo" />
         <div class="brand-text">
-          <div class="brand-title">GreenWall</div>
+          <div class="brand-title">{{ appName }}</div>
+          <div v-if="appVersion" class="brand-subtitle">v{{ appVersion }}</div>
         </div>
       </button>
       <slot name="left"></slot>
@@ -201,6 +206,12 @@ function goPrivacy() {
   font-weight: 700;
   font-size: 1rem;
   color: var(--color-text-main);
+}
+
+.brand-subtitle {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  line-height: 1;
 }
 
 .theme-trigger {

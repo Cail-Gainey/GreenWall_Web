@@ -23,3 +23,7 @@ export function updateConfig(data: ConfigUpdateDto) {
 export function deleteConfig(id: string) {
   return request.delete<ApiResult<boolean>>(`/config/${id}`)
 }
+
+export function getPublicConfigs() {
+  return request.get<ApiResult<Record<string, string | null>>>('/config/public')
+}

@@ -2,7 +2,7 @@
 /**
  * @file 根组件：提供全局画笔状态供子组件注入。
  */
-import { computed, ref, provide, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, provide, onMounted, onBeforeUnmount, watch } from 'vue'
 import {
   NConfigProvider,
   NDialogProvider,
@@ -14,6 +14,7 @@ import {
 } from 'naive-ui'
 import { useTheme } from './composables/useTheme'
 import { getPalette, type ResolvedTheme } from './theme/palette'
+import { useAppConfigStore } from './stores/appConfig'
 
 /**
  * @description 当前激活贡献等级（0-4）。
@@ -48,6 +49,7 @@ provide('requestFillAll', requestFillAll)
 const { currentTheme, resolvedTheme } = useTheme()
 const previousHtmlOverflow = ref<string>('')
 const previousBodyOverflow = ref<string>('')
+const appConfigStore = useAppConfigStore()
 
 const effectiveTheme = computed(() => {
   return currentTheme.value === 'auto' ? resolvedTheme.value : currentTheme.value
@@ -102,12 +104,21 @@ onMounted(() => {
   previousBodyOverflow.value = document.body.style.overflow
   document.documentElement.style.overflow = 'hidden'
   document.body.style.overflow = 'hidden'
+  void appConfigStore.load()
 })
 
 onBeforeUnmount(() => {
   document.documentElement.style.overflow = previousHtmlOverflow.value
   document.body.style.overflow = previousBodyOverflow.value
 })
+
+watch(
+  () => appConfigStore.getValue('app:name'),
+  (name) => {
+    if (name) document.title = name
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
