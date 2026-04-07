@@ -490,6 +490,33 @@ export interface PatternDetailDto extends PatternListItemDto {
   creatorId: string
 }
 
+export interface PatternExportRequestDto {
+  format: 'png' | 'json'
+  background?: string
+  scale?: number
+}
+
+export interface PatternExportTaskDto {
+  taskId: string
+  status: 'pending' | 'processing' | 'success' | 'failed'
+  format: string
+  downloadUrl?: string
+  errorMessage?: string
+  createTime: string
+  completedTime?: string
+}
+
+export interface PatternJsonPayload {
+  version: string
+  title: string
+  description?: string
+  visibility: 'public' | 'followers' | 'private'
+  year: number
+  gridCols: number
+  gridRows: number
+  cells: PatternCellDto[]
+}
+
 // ========== 图案评论 ==========
 
 export interface PatternCommentCreateDto {

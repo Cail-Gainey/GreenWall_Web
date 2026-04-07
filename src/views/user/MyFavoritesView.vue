@@ -16,7 +16,7 @@ import {
   useDialog,
   useMessage,
 } from 'naive-ui'
-import { Edit } from '@vicons/carbon'
+import { Edit, Share } from '@vicons/carbon'
 import {
   deletePattern,
   favoritePattern,
@@ -30,6 +30,7 @@ import {
 import type { PatternDetailDto, PatternListItemDto } from '../../api/types'
 import PatternCard from '../../components/PatternCard.vue'
 import PatternDetailModal from '../../components/PatternDetailModal.vue'
+import PatternExportDialog from '../../components/PatternExportDialog.vue'
 import PatternEditorModal from '../../components/PatternEditorModal.vue'
 import { usePermissionStore } from '../../stores/permission'
 import { usePatternImportStore } from '../../stores/patternImport'
@@ -50,6 +51,8 @@ const pageSize = ref(12)
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detail = ref<PatternDetailDto | null>(null)
+const exportDialogVisible = ref(false)
+const exportTarget = ref<PatternDetailDto | null>(null)
 const editVisible = ref(false)
 const editTitle = ref('')
 const editDesc = ref('')
@@ -70,6 +73,7 @@ const canManageDetail = computed(() => {
   const currentId = permissionStore.user?.id
   return !!currentId && detail.value.creatorId === currentId
 })
+const canExportDetail = computed(() => canManageDetail.value)
 const showLike = computed(() => !isLoggedIn.value || canLike.value)
 const showFavorite = computed(() => !isLoggedIn.value || canFavorite.value)
 const showImport = computed(() => !isLoggedIn.value || canImport.value)
@@ -208,6 +212,12 @@ const toggleFavorite = async (item: PatternListItemDto) => {
   } catch (e: any) {
     message.error(e?.message || '操作失败')
   }
+}
+
+const openExportDialog = () => {
+  if (!detail.value) return
+  exportTarget.value = detail.value
+  exportDialogVisible.value = true
 }
 
 /**
@@ -396,6 +406,27 @@ watch(pageIndex, () => {
       @edit="detail && openEditModal(detail)"
       @delete="removePattern"
       @go-user="goUserHome"
+    >
+      <template v-if="canExportDetail" #actions-prefix>
+        <span class="detail-extra-action">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button size="small" secondary circle @click="openExportDialog">
+                <n-icon size="16">
+                  <Share />
+                </n-icon>
+              </n-button>
+            </template>
+            导出与分享
+          </n-tooltip>
+        </span>
+      </template>
+    </PatternDetailModal>
+
+    <PatternExportDialog
+      v-model:show="exportDialogVisible"
+      :pattern-id="exportTarget?.id"
+      :pattern-title="exportTarget?.title"
     />
 
     <PatternEditorModal
@@ -443,5 +474,8 @@ watch(pageIndex, () => {
   display: flex;
   justify-content: center;
   padding-top: 8px;
+}
+.detail-extra-action {
+  display: inline-flex;
 }
 </style>

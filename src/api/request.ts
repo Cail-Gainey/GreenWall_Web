@@ -34,6 +34,9 @@ request.interceptors.request.use((config) => {
  */
 request.interceptors.response.use(
   (response) => {
+    const contentType = response.headers?.['content-type']
+    if (response.config.responseType === 'blob' || (contentType && !contentType.includes('application/json')))
+      return response
     const data = response.data as ApiResult<unknown>
     if (data.code !== 200) {
       return Promise.reject(new Error(data.msg || '请求失败'))

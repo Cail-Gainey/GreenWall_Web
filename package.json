@@ -1,7 +1,9 @@
 {
   "name": "greenwall",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "GreenWall Cross-Platform Client",
+  "author": "Cail-Gainey",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -9,9 +11,11 @@
     "dev:electron": "concurrently -k \"vite --strictPort\" \"wait-on tcp:5173 && electron .\"",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview --strictPort",
-    "electron:preview": "electron ."
+    "electron:preview": "electron .",
+    "build:electron": "vite build && electron-builder build"
   },
   "dependencies": {
+    "@capacitor/core": "^8.3.0",
     "@vicons/carbon": "^0.13.0",
     "axios": "^1.13.6",
     "naive-ui": "^2.42.1",
@@ -23,14 +27,39 @@
     "vue-router": "^5.0.3"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^8.3.0",
     "@types/node": "^24.10.1",
     "@vitejs/plugin-vue": "^6.0.2",
     "@vue/tsconfig": "^0.8.1",
     "concurrently": "^9.2.1",
     "electron": "^37.10.3",
+    "electron-builder": "^26.8.1",
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
     "vue-tsc": "^3.1.5",
     "wait-on": "^8.0.5"
+  },
+  "build": {
+    "appId": "com.greenwall.app",
+    "productName": "GreenWall",
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    }
   }
 }

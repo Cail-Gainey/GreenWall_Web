@@ -3,12 +3,13 @@
  * @file 图案编辑弹窗模板：表单 + 工具栏 + 图案悬浮预览。
  */
 import { computed, onMounted, ref, watch } from 'vue'
-import { NModal, NInput, NButton, NSelect, NIcon, NTooltip } from 'naive-ui'
+import { NModal, NInput, NButton, NSelect, NIcon, NTooltip, useMessage } from 'naive-ui'
 import ToolbarTemplate from './ToolbarTemplate.vue'
 import PatternDialog from './PatternDialog.vue'
 import GraphTableTemplate, { type GraphCell } from './GraphTableTemplate.vue'
 import { calcTotalCols, getYearMeta, isFutureCell } from '../utils/graph'
 import { ChevronLeft, ChevronRight, Close, Checkmark } from '@vicons/carbon'
+import { buildCellsFromGrid, buildGridFromCells } from '../utils/patternGrid'
 
 const props = withDefaults(
   defineProps<{
@@ -331,6 +332,61 @@ watch(activeTool, () => {
     clearPreview()
   }
 })
+
+const message = useMessage()
+const jsonImportInput = ref<HTMLInputElement | null>(null)
+
+const downloadJsonLocal = () => {
+  const payload = {
+    version: '1.0',
+    title: props.title,
+    description: props.desc,
+    visibility: props.visibility,
+    year: props.year,
+    gridCols: props.grid.length || totalCols.value,
+    gridRows: rows.value,
+    cells: buildCellsFromGrid(props.grid),
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${props.title || 'pattern'}.json`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+const triggerJsonImport = () => {
+  jsonImportInput.value?.click()
+}
+
+const handleJsonImport = async (event: Event) => {
+  const files = (event.target as HTMLInputElement).files
+  if (!files || files.length === 0) return
+  const file = files[0]
+  try {
+    const text = await file.text()
+    const payload = JSON.parse(text)
+    if (!payload || !Array.isArray(payload.cells)) throw new Error('Invalid payload')
+    emit('update:title', payload.title || '')
+    emit('update:desc', payload.description || '')
+    if (payload.visibility) {
+      emit('update:visibility', payload.visibility as 'public' | 'followers' | 'private')
+    }
+    if (payload.year) emit('update:year', Number(payload.year))
+    const cols = Number(payload.gridCols) || totalCols.value
+    const rowsCount = Number(payload.gridRows) || 7
+    const nextGrid = buildGridFromCells(payload.cells, cols, rowsCount)
+    emit('update:grid', nextGrid)
+    message.success('已导入 JSON 数据')
+  } catch (err: any) {
+    message.error(err?.message || '解析 JSON 失败')
+  } finally {
+    if (jsonImportInput.value) jsonImportInput.value.value = ''
+  }
+}
 </script>
 
 <template>
@@ -407,6 +463,11 @@ watch(activeTool, () => {
         @fill="fillGrid"
       />
     </div>
+    <div class="json-tools">
+      <n-button size="small" tertiary @click="downloadJsonLocal">导出 JSON</n-button>
+      <n-button size="small" tertiary @click="triggerJsonImport">导入 JSON</n-button>
+    </div>
+    <input ref="jsonImportInput" type="file" accept="application/json" style="display: none" @change="handleJsonImport" />
     <div class="actions">
       <n-tooltip trigger="hover">
         <template #trigger>
@@ -456,6 +517,13 @@ watch(activeTool, () => {
 .edit-canvas {
   position: relative;
   padding-bottom: 84px;
+}
+
+.json-tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .edit-preview {
