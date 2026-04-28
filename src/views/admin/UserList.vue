@@ -315,7 +315,7 @@ async function submitForm() {
       return showMsg('账号为 3-50 位且不能包含空格', true)
     }
     if (!isValidPassword(form.value.password)) {
-      return showMsg('密码为 6-100 位且不能包含空格', true)
+      return showMsg('密码至少 6 位，且必须包含字母和数字', true)
     }
     if (emailValue && !isValidEmail(emailValue)) {
       return showMsg('邮箱格式不正确', true)
@@ -773,7 +773,7 @@ onMounted(async () => {
             <n-input v-model:value="form.account" placeholder="登录账号" />
           </n-form-item>
           <n-form-item v-if="formMode === 'create'" label="密码">
-            <n-input v-model:value="form.password" type="password" placeholder="至少 6 位" />
+            <n-input v-model:value="form.password" type="password" placeholder="至少 6 位，需包含字母和数字" />
           </n-form-item>
           <n-form-item label="昵称">
             <n-input v-model:value="form.nickName" placeholder="用户昵称" />

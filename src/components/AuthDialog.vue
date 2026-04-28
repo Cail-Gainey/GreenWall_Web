@@ -155,7 +155,7 @@ async function handleLogin() {
     return
   }
   if (!isValidPassword(loginPassword.value)) {
-    showMsg('密码为 6-100 位且不能包含空格', true)
+    showMsg('密码至少 6 位，且必须包含字母和数字', true)
     return
   }
   if (!loginCaptchaId.value) {
@@ -202,7 +202,7 @@ async function handleRegister() {
     return
   }
   if (!isValidPassword(regPassword.value)) {
-    showMsg('密码为 6-100 位且不能包含空格', true)
+    showMsg('密码至少 6 位，且必须包含字母和数字', true)
     return
   }
   if (regConfirmPassword.value !== regPassword.value) {
@@ -257,7 +257,7 @@ async function handleReset() {
     return
   }
   if (!isValidPassword(forgotNewPassword.value)) {
-    showMsg('新密码为 6-100 位且不能包含空格', true)
+    showMsg('新密码至少 6 位，且必须包含字母和数字', true)
     return
   }
   if (forgotConfirmPassword.value !== forgotNewPassword.value) {
@@ -325,7 +325,7 @@ onMounted(async () => {
               <n-input v-model:value="regAccount" placeholder="请输入账号" />
             </n-form-item>
             <n-form-item label="密码">
-              <n-input v-model:value="regPassword" type="password" placeholder="至少 6 位" />
+              <n-input v-model:value="regPassword" type="password" placeholder="至少 6 位，需包含字母和数字" />
             </n-form-item>
             <n-form-item label="确认密码">
               <n-input v-model:value="regConfirmPassword" type="password" placeholder="再次输入密码" />
@@ -374,7 +374,7 @@ onMounted(async () => {
               </n-space>
             </n-form-item>
             <n-form-item label="新密码">
-              <n-input v-model:value="forgotNewPassword" type="password" placeholder="至少 6 位" />
+              <n-input v-model:value="forgotNewPassword" type="password" placeholder="至少 6 位，需包含字母和数字" />
             </n-form-item>
             <n-form-item label="确认新密码">
               <n-input v-model:value="forgotConfirmPassword" type="password" placeholder="再次输入密码" />

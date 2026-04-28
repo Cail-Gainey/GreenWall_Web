@@ -7,7 +7,7 @@
  */
 export const FORM_REGEX = {
   account: /^[^\s]{3,50}$/,
-  password: /^[^\s]{6,100}$/,
+  password: /^(?=.*[A-Za-z])(?=.*\d)[^\s]{6,100}$/,
   email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   phone: /^\+?\d{6,20}$/,
   imageCaptcha: /^[A-Za-z0-9]{4,5}$/,
@@ -30,7 +30,7 @@ export function isValidAccount(value: string) {
 }
 
 /**
- * @description 校验密码。
+ * @description 校验密码（至少 6 位，包含字母和数字，不含空格）。
  */
 export function isValidPassword(value: string) {
   return FORM_REGEX.password.test(value)

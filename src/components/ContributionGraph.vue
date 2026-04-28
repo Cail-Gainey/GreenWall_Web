@@ -99,7 +99,7 @@ const connectGithub = () => {
     message.warning('GitHub OAuth 已关闭');
     return;
   }
-  const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api';
+  const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8888/api';
   window.location.href = `${apiBase}/github/authorize`;
 };
 const disconnectGithub = () => {

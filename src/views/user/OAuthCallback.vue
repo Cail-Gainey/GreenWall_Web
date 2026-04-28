@@ -31,6 +31,12 @@ onMounted(async () => {
     return
   }
 
+  if (!localStorage.getItem('token')) {
+    error.value = '请先登录后再绑定 GitHub'
+    loading.value = false
+    return
+  }
+
   try {
     const res = await exchangeGithubTicket(ticket)
     githubStore.setProfile(res.data.data)

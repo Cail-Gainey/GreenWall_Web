@@ -34,7 +34,7 @@ request.interceptors.request.use((config) => {
  */
 request.interceptors.response.use(
   (response) => {
-    const contentType = response.headers?.['content-type']
+    const contentType = String(response.headers?.['content-type'] ?? '')
     if (response.config.responseType === 'blob' || (contentType && !contentType.includes('application/json')))
       return response
     const data = response.data as ApiResult<unknown>
@@ -44,7 +44,7 @@ request.interceptors.response.use(
     const refreshedToken = response.headers?.['x-access-token']
     if (refreshedToken) {
       const permissionStore = usePermissionStore()
-      permissionStore.setToken(refreshedToken)
+      permissionStore.setToken(String(refreshedToken))
     }
     return response
   },
