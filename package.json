@@ -12,7 +12,7 @@
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview --strictPort",
     "electron:preview": "electron .",
-    "build:electron": "vite build && electron-builder build"
+    "build:electron": "vite build --mode electron && electron-builder build"
   },
   "dependencies": {
     "@capacitor/core": "^8.3.0",
