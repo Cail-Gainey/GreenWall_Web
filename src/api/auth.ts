@@ -3,7 +3,7 @@
  */
 import request from './request'
 import { cachedGet, invalidateHttpCache } from './httpCache'
-import type { ApiResult, LoginDto, RegisterDto, ResetPasswordDto, TokenDto, UserProfileDto } from './types'
+import type { ApiResult, ChangePasswordDto, LoginDto, RegisterDto, ResetPasswordDto, TokenDto, UserProfileDto } from './types'
 
 /**
  * @description 账号密码登录。
@@ -33,6 +33,17 @@ export function register(data: RegisterDto) {
  */
 export function resetPassword(data: ResetPasswordDto) {
   return request.post<ApiResult<boolean>>('/Auth/reset-password', data).then((res) => {
+    invalidateHttpCache()
+    return res
+  })
+}
+
+/**
+ * @description 已登录用户修改密码（需提供当前密码）。
+ * @param {ChangePasswordDto} data 修改密码参数。
+ */
+export function changePassword(data: ChangePasswordDto) {
+  return request.post<ApiResult<boolean>>('/Auth/change-password', data).then((res) => {
     invalidateHttpCache()
     return res
   })

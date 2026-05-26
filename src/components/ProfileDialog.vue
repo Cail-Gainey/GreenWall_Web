@@ -4,14 +4,14 @@
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { NAlert, NAvatar, NButton, NCard, NCheckbox, NForm, NFormItemGi, NGrid, NInput, NModal, NSelect, NSpace, useDialog } from 'naive-ui'
-import { getMe } from '../api/auth'
+import { changePassword, getMe } from '../api/auth'
 import { deleteCurrentUserData, updateProfile, uploadAvatar } from '../api/user'
 import { usePermissionStore } from '../stores/permission'
 import { storeToRefs } from 'pinia'
 import type { UserProfileDto, UserProfileUpdateDto } from '../api/types'
 import { resolveAvatar, userAvatarFallback } from '../utils/avatar'
 import { TimeFormatter } from '../utils/time'
-import { isValidEmail, isValidPhone } from '../utils/validators'
+import { isValidEmail, isValidPassword, isValidPhone } from '../utils/validators'
 import 'vue-cropper/dist/index.css'
 import { VueCropper } from 'vue-cropper'
 
@@ -299,6 +299,72 @@ function togglePrivacyConsent(checked: boolean) {
   form.value.privacyConsent = checked
 }
 
+const showPasswordDialog = ref(false)
+const passwordSaving = ref(false)
+const passwordMessage = ref('')
+const passwordIsError = ref(false)
+const passwordForm = ref({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+})
+
+function resetPasswordForm() {
+  passwordForm.value.oldPassword = ''
+  passwordForm.value.newPassword = ''
+  passwordForm.value.confirmPassword = ''
+  passwordMessage.value = ''
+  passwordIsError.value = false
+}
+
+function showPasswordMsg(msg: string, error = false) {
+  passwordMessage.value = msg
+  passwordIsError.value = error
+}
+
+function openPasswordDialog() {
+  resetPasswordForm()
+  showPasswordDialog.value = true
+}
+
+async function submitChangePassword() {
+  const oldPwd = passwordForm.value.oldPassword
+  const newPwd = passwordForm.value.newPassword
+  const confirmPwd = passwordForm.value.confirmPassword
+
+  if (!oldPwd) {
+    return showPasswordMsg('请输入当前密码', true)
+  }
+  if (!isValidPassword(newPwd)) {
+    return showPasswordMsg('新密码至少 6 位，且必须包含字母和数字', true)
+  }
+  if (newPwd === oldPwd) {
+    return showPasswordMsg('新密码不能与原密码相同', true)
+  }
+  if (confirmPwd !== newPwd) {
+    return showPasswordMsg('两次输入的新密码不一致', true)
+  }
+
+  passwordSaving.value = true
+  showPasswordMsg('')
+  try {
+    await changePassword({
+      oldPassword: oldPwd,
+      newPassword: newPwd,
+      confirmPassword: confirmPwd,
+    })
+    showPasswordMsg('密码修改成功', false)
+    setTimeout(() => {
+      showPasswordDialog.value = false
+      resetPasswordForm()
+    }, 600)
+  } catch (e: any) {
+    showPasswordMsg(e?.message || '修改密码失败', true)
+  } finally {
+    passwordSaving.value = false
+  }
+}
+
 function confirmDeleteMyData() {
   dialog.warning({
     title: '删除个人数据',
@@ -400,10 +466,52 @@ function confirmDeleteMyData() {
         <n-space>
           <n-button secondary @click="emit('update:show', false)">关闭</n-button>
           <n-button v-if="hasPendingAvatar" secondary @click="discardPendingAvatar">放弃头像更改</n-button>
+          <n-button secondary @click="openPasswordDialog">修改密码</n-button>
           <n-button type="primary" :loading="saving" :disabled="!canEdit" @click="submit">
             保存
           </n-button>
         </n-space>
+      </n-space>
+    </n-space>
+  </n-modal>
+
+  <!-- 修改密码弹窗 -->
+  <n-modal :show="showPasswordDialog" preset="card" title="修改密码" style="width: min(440px, 92vw);" @update:show="(val) => { showPasswordDialog = val; if (!val) resetPasswordForm() }">
+    <n-space vertical size="large">
+      <n-alert v-if="passwordMessage" :type="passwordIsError ? 'error' : 'success'">
+        {{ passwordMessage }}
+      </n-alert>
+      <n-form label-placement="top" :model="passwordForm" @keydown.enter.prevent="submitChangePassword">
+        <n-form-item label="当前密码">
+          <n-input
+            v-model:value="passwordForm.oldPassword"
+            type="password"
+            show-password-on="mousedown"
+            placeholder="请输入当前密码"
+          />
+        </n-form-item>
+        <n-form-item label="新密码">
+          <n-input
+            v-model:value="passwordForm.newPassword"
+            type="password"
+            show-password-on="mousedown"
+            placeholder="至少 6 位，需包含字母和数字"
+          />
+        </n-form-item>
+        <n-form-item label="确认新密码">
+          <n-input
+            v-model:value="passwordForm.confirmPassword"
+            type="password"
+            show-password-on="mousedown"
+            placeholder="再次输入新密码"
+          />
+        </n-form-item>
+      </n-form>
+      <n-space justify="end">
+        <n-button secondary @click="showPasswordDialog = false">取消</n-button>
+        <n-button type="primary" :loading="passwordSaving" @click="submitChangePassword">
+          确认修改
+        </n-button>
       </n-space>
     </n-space>
   </n-modal>

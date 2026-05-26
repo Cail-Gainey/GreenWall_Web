@@ -277,6 +277,15 @@ export interface ResetPasswordDto {
 }
 
 /**
+ * @description 已登录用户修改密码请求。
+ */
+export interface ChangePasswordDto {
+  oldPassword: string
+  newPassword: string
+  confirmPassword: string
+}
+
+/**
  * @description 登录成功响应（仅 Token，用户信息通过 /api/Auth/me 获取）。
  */
 export interface TokenDto {
