@@ -605,6 +605,34 @@ export interface ServerMonitorDto {
    */
   ipAddress?: string
   /**
+   * @description 操作系统架构（X64 / Arm64 等）。
+   */
+  osArchitecture?: string
+  /**
+   * @description 当前 .NET 进程架构。
+   */
+  processArchitecture?: string
+  /**
+   * @description CPU 型号（Linux/macOS 可用）。
+   */
+  cpuModel?: string
+  /**
+   * @description 服务器当前时间，用于排查时钟漂移。
+   */
+  serverTime?: string
+  /**
+   * @description 当前进程线程数。
+   */
+  threadCount?: number
+  /**
+   * @description 当前进程句柄数（Windows/Linux 可用）。
+   */
+  handleCount?: number
+  /**
+   * @description 进程私有内存（字节）。
+   */
+  privateMemoryBytes?: number
+  /**
    * @description CPU 使用率百分比（可选）。
    */
   cpuUsage?: number
@@ -613,13 +641,61 @@ export interface ServerMonitorDto {
    */
   ramUsage?: number
   /**
+   * @description 系统总内存（字节）。
+   */
+  totalMemoryBytes?: number
+  /**
+   * @description 已用系统内存（字节）。
+   */
+  usedMemoryBytes?: number
+  /**
+   * @description 可用系统内存（字节）。
+   */
+  availableMemoryBytes?: number
+  /**
    * @description Swap 使用率百分比（可选）。
    */
   swapUsage?: number
   /**
+   * @description Swap 总大小（字节）。
+   */
+  totalSwapBytes?: number
+  /**
+   * @description Swap 已用大小（字节）。
+   */
+  usedSwapBytes?: number
+  /**
    * @description 磁盘使用率百分比（可选）。
    */
   diskUsage?: number
+  /**
+   * @description 磁盘总容量（字节）。
+   */
+  totalDiskBytes?: number
+  /**
+   * @description 磁盘已用（字节）。
+   */
+  usedDiskBytes?: number
+  /**
+   * @description 磁盘可用（字节）。
+   */
+  freeDiskBytes?: number
+  /**
+   * @description 当前监控的磁盘挂载点。
+   */
+  diskMountPoint?: string
+  /**
+   * @description 1 分钟系统负载（Linux/macOS 可用）。
+   */
+  loadAverage1m?: number
+  /**
+   * @description 5 分钟系统负载。
+   */
+  loadAverage5m?: number
+  /**
+   * @description 15 分钟系统负载。
+   */
+  loadAverage15m?: number
 }
 
 // ========== 系统设置 ==========

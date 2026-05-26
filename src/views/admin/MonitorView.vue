@@ -30,25 +30,16 @@ const showServerDetail = ref(false)
 const heartbeatTimer = ref<number | null>(null)
 const lastUpdatedAt = ref('')
 const heartbeatActive = computed(() => heartbeatTimer.value !== null)
-const fallbackOps = {
-  title: '开发服务器',
-  ip: '192.168.1.100',
-  metrics: {
-    cpu: 32,
-    ram: 75,
-    swap: 76,
-    disk: 26,
-  },
-}
-const serverTitle = computed(() => server.value?.displayName || server.value?.machineName || fallbackOps.title)
-const serverIp = computed(() => server.value?.ipAddress || fallbackOps.ip)
-const clampPercent = (value: number | null | undefined, fallback: number) => {
-  if (value === undefined || value === null || Number.isNaN(value)) return fallback
+const serverTitle = computed(() => server.value?.displayName || server.value?.machineName || '未知服务器')
+const serverIp = computed(() => server.value?.ipAddress || '—')
+const formatPercent = (value: number | null | undefined) => {
+  if (value === undefined || value === null || Number.isNaN(value)) return null
   return Math.max(0, Math.min(100, Math.round(value)))
 }
 const formatBytes = (value?: number | null) => {
-  if (!value || Number.isNaN(value)) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  if (value === undefined || value === null || Number.isNaN(value)) return '—'
+  if (value === 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
   let size = value
   let idx = 0
   while (size >= 1024 && idx < units.length - 1) {
@@ -58,21 +49,83 @@ const formatBytes = (value?: number | null) => {
   const digits = size >= 10 || idx === 0 ? 0 : 1
   return `${size.toFixed(digits)} ${units[idx]}`
 }
+const formatNumber = (value?: number | null) => {
+  if (value === undefined || value === null || Number.isNaN(value)) return '—'
+  return value.toLocaleString()
+}
+const formatDuration = (totalSeconds?: number | null) => {
+  if (totalSeconds === undefined || totalSeconds === null || Number.isNaN(totalSeconds)) return '—'
+  let remaining = Math.max(0, Math.floor(totalSeconds))
+  const days = Math.floor(remaining / 86400)
+  remaining %= 86400
+  const hours = Math.floor(remaining / 3600)
+  remaining %= 3600
+  const minutes = Math.floor(remaining / 60)
+  const seconds = remaining % 60
+  const parts: string[] = []
+  if (days) parts.push(`${days}天`)
+  if (hours) parts.push(`${hours}小时`)
+  if (minutes) parts.push(`${minutes}分`)
+  parts.push(`${seconds}秒`)
+  return parts.join(' ')
+}
+const formatLoad = (value?: number | null) => {
+  if (value === undefined || value === null || Number.isNaN(value)) return '—'
+  return value.toFixed(2)
+}
 const serverSummary = computed(() => {
   if (!server.value) return ''
-  const parts = [`运行时长 ${server.value.uptime}s`]
+  const parts: string[] = [`运行 ${formatDuration(server.value.uptime)}`]
   if (server.value.workingSet) parts.push(`工作集 ${formatBytes(server.value.workingSet)}`)
   if (server.value.gcMemory) parts.push(`GC ${formatBytes(server.value.gcMemory)}`)
   return parts.join(' · ')
 })
 const opsMetrics = computed(() => {
   const source = server.value
+  const cpu = formatPercent(source?.cpuUsage)
+  const ram = formatPercent(source?.ramUsage)
+  const swap = formatPercent(source?.swapUsage)
+  const disk = formatPercent(source?.diskUsage)
   return [
-    { key: 'cpu', label: 'CPU', percent: clampPercent(source?.cpuUsage, fallbackOps.metrics.cpu) },
-    { key: 'ram', label: 'RAM', percent: clampPercent(source?.ramUsage, fallbackOps.metrics.ram) },
-    { key: 'swap', label: 'SWAP', percent: clampPercent(source?.swapUsage, fallbackOps.metrics.swap) },
-    { key: 'disk', label: 'DISK', percent: clampPercent(source?.diskUsage, fallbackOps.metrics.disk) },
+    {
+      key: 'cpu',
+      label: 'CPU',
+      percent: cpu,
+      caption: source?.cpuModel || (source ? `${source.processorCount} 核` : '—'),
+    },
+    {
+      key: 'ram',
+      label: 'RAM',
+      percent: ram,
+      caption: source?.totalMemoryBytes
+        ? `${formatBytes(source.usedMemoryBytes)} / ${formatBytes(source.totalMemoryBytes)}`
+        : '—',
+    },
+    {
+      key: 'swap',
+      label: 'SWAP',
+      percent: swap,
+      caption: source?.totalSwapBytes
+        ? `${formatBytes(source.usedSwapBytes)} / ${formatBytes(source.totalSwapBytes)}`
+        : '系统未启用 Swap',
+    },
+    {
+      key: 'disk',
+      label: 'DISK',
+      percent: disk,
+      caption: source?.totalDiskBytes
+        ? `${formatBytes(source.usedDiskBytes)} / ${formatBytes(source.totalDiskBytes)}${source.diskMountPoint ? ` · ${source.diskMountPoint}` : ''}`
+        : '—',
+    },
   ]
+})
+const loadAverageText = computed(() => {
+  if (!server.value) return '—'
+  const { loadAverage1m, loadAverage5m, loadAverage15m } = server.value
+  if (loadAverage1m == null && loadAverage5m == null && loadAverage15m == null) {
+    return '当前系统不支持负载查询'
+  }
+  return `${formatLoad(loadAverage1m)} · ${formatLoad(loadAverage5m)} · ${formatLoad(loadAverage15m)}`
 })
 
 const load = async () => {
@@ -379,45 +432,111 @@ const confirmOp = (title: string, action: (token?: string) => Promise<any>) => {
           </div>
         <div class="ops-metrics">
           <div v-for="item in opsMetrics" :key="item.key" class="ops-metric" :class="item.key">
-            <div class="metric-label">{{ item.label }}</div>
+            <div class="metric-head">
+              <div class="metric-label">{{ item.label }}</div>
+              <div class="metric-value-text">{{ item.percent === null ? '—' : `${item.percent}%` }}</div>
+            </div>
             <div class="metric-bar">
               <div class="metric-track">
-                  <div class="metric-fill" :style="{ width: `${item.percent}%` }"></div>
-                </div>
-                <div class="metric-value">{{ item.percent }}%</div>
+                <div
+                  class="metric-fill"
+                  :class="{ unknown: item.percent === null }"
+                  :style="{ width: `${item.percent ?? 0}%` }"
+                ></div>
+              </div>
             </div>
+            <div class="metric-caption">{{ item.caption }}</div>
           </div>
         </div>
       </div>
         <div v-if="showServerDetail" class="ops-detail">
-          <div class="ops-detail-title">基础信息</div>
+          <div class="ops-detail-title">主机信息</div>
           <n-grid :x-gap="16" :y-gap="16" :cols="4" responsive="screen">
             <n-grid-item>
-              <n-statistic label="机器名" :value="server.machineName" />
+              <n-statistic label="机器名" :value="server.machineName || '—'" />
             </n-grid-item>
             <n-grid-item>
-              <n-statistic label="系统" :value="server.osDescription" />
+              <n-statistic label="IP 地址" :value="server.ipAddress || '—'" />
             </n-grid-item>
             <n-grid-item>
-              <n-statistic label=".NET" :value="server.frameworkDescription" />
+              <n-statistic label="操作系统" :value="server.osDescription || '—'" />
             </n-grid-item>
             <n-grid-item>
-              <n-statistic label="进程 ID" :value="server.processId" />
+              <n-statistic label="系统架构" :value="server.osArchitecture || '—'" />
             </n-grid-item>
             <n-grid-item>
-              <n-statistic label="启动时间" :value="TimeFormatter.formatDateTime(server.processStartTime)" />
-            </n-grid-item>
-            <n-grid-item>
-              <n-statistic label="运行时长(秒)" :value="server.uptime" />
+              <n-statistic label="CPU 型号" :value="server.cpuModel || '—'" />
             </n-grid-item>
             <n-grid-item>
               <n-statistic label="CPU 核心" :value="server.processorCount" />
             </n-grid-item>
             <n-grid-item>
-              <n-statistic label="工作集内存" :value="server.workingSet" />
+              <n-statistic label="系统负载 (1/5/15min)" :value="loadAverageText" />
             </n-grid-item>
             <n-grid-item>
-              <n-statistic label="GC 内存" :value="server.gcMemory" />
+              <n-statistic label="服务器时间" :value="TimeFormatter.formatDateTime(server.serverTime || '')" />
+            </n-grid-item>
+          </n-grid>
+
+          <div class="ops-detail-title">资源详情</div>
+          <n-grid :x-gap="16" :y-gap="16" :cols="4" responsive="screen">
+            <n-grid-item>
+              <n-statistic label="内存总量" :value="formatBytes(server.totalMemoryBytes)" />
+            </n-grid-item>
+            <n-grid-item>
+              <n-statistic label="内存已用" :value="formatBytes(server.usedMemoryBytes)" />
+            </n-grid-item>
+            <n-grid-item>
+              <n-statistic label="内存可用" :value="formatBytes(server.availableMemoryBytes)" />
+            </n-grid-item>
+            <n-grid-item>
+              <n-statistic label="磁盘挂载点" :value="server.diskMountPoint || '—'" />
+            </n-grid-item>
+            <n-grid-item>
+              <n-statistic label="磁盘总量" :value="formatBytes(server.totalDiskBytes)" />
+            </n-grid-item>
+            <n-grid-item>
+              <n-statistic label="磁盘已用" :value="formatBytes(server.usedDiskBytes)" />
+            </n-grid-item>
+            <n-grid-item>
+              <n-statistic label="磁盘可用" :value="formatBytes(server.freeDiskBytes)" />
+            </n-grid-item>
+            <n-grid-item>
+              <n-statistic label="Swap 总量" :value="formatBytes(server.totalSwapBytes)" />
+            </n-grid-item>
+          </n-grid>
+
+          <div class="ops-detail-title">应用进程</div>
+          <n-grid :x-gap="16" :y-gap="16" :cols="4" responsive="screen">
+            <n-grid-item>
+              <n-statistic label=".NET 运行时" :value="server.frameworkDescription || '—'" />
+            </n-grid-item>
+            <n-grid-item>
+              <n-statistic label="进程架构" :value="server.processArchitecture || '—'" />
+            </n-grid-item>
+            <n-grid-item>
+              <n-statistic label="进程 ID" :value="server.processId" />
+            </n-grid-item>
+            <n-grid-item>
+              <n-statistic label="进程启动时间" :value="TimeFormatter.formatDateTime(server.processStartTime)" />
+            </n-grid-item>
+            <n-grid-item>
+              <n-statistic label="进程运行时长" :value="formatDuration(server.uptime)" />
+            </n-grid-item>
+            <n-grid-item>
+              <n-statistic label="进程线程数" :value="formatNumber(server.threadCount)" />
+            </n-grid-item>
+            <n-grid-item>
+              <n-statistic label="进程句柄数" :value="formatNumber(server.handleCount)" />
+            </n-grid-item>
+            <n-grid-item>
+              <n-statistic label="私有内存" :value="formatBytes(server.privateMemoryBytes)" />
+            </n-grid-item>
+            <n-grid-item>
+              <n-statistic label="工作集内存" :value="formatBytes(server.workingSet)" />
+            </n-grid-item>
+            <n-grid-item>
+              <n-statistic label="GC 已分配内存" :value="formatBytes(server.gcMemory)" />
             </n-grid-item>
           </n-grid>
         </div>
@@ -810,9 +929,8 @@ const confirmOp = (title: string, action: (token?: string) => Promise<any>) => {
 
 .ops-metric {
   display: grid;
-  grid-template-columns: 50px 1fr;
-  align-items: center;
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 6px;
   --metric-color: var(--color-primary);
 }
 
@@ -832,7 +950,20 @@ const confirmOp = (title: string, action: (token?: string) => Promise<any>) => {
   --metric-color: var(--color-success);
 }
 
+.metric-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .metric-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.metric-value-text {
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text-main);
@@ -845,7 +976,7 @@ const confirmOp = (title: string, action: (token?: string) => Promise<any>) => {
 
 .metric-track {
   width: 100%;
-  height: 16px;
+  height: 12px;
   border-radius: 999px;
   background: var(--color-border);
   overflow: hidden;
@@ -858,15 +989,23 @@ const confirmOp = (title: string, action: (token?: string) => Promise<any>) => {
   transition: width 0.3s ease;
 }
 
-.metric-value {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-inverse);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+.metric-fill.unknown {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--color-border),
+    var(--color-border) 8px,
+    transparent 8px,
+    transparent 16px
+  );
+  width: 100% !important;
+  opacity: 0.6;
+}
+
+.metric-caption {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  word-break: break-all;
 }
 
 .ops-detail {
