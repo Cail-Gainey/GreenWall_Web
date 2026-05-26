@@ -1,0 +1,13 @@
+**/node_modules/
+dist/
+android/
+electron/
+release/
+.git/
+.gitignore
+Dockerfile
+.dockerignore
+*.log
+.env
+.env.*
+!.env.production
