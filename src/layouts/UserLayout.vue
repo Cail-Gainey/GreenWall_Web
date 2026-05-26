@@ -3,6 +3,7 @@
  * @file 用户端布局：Naive UI Layout + 认证弹窗。
  */
 import { ref, onMounted, watch } from 'vue'
+import { computed, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import Header from '../components/Header.vue'
 import ProfileDialog from '../components/ProfileDialog.vue'
@@ -20,6 +21,10 @@ import type { UserProfileDto } from '../api/types'
 const showAuthDialog = ref(false)
 const showProfileDialog = ref(false)
 const currentUser = ref<UserProfileDto | null>(null)
+const isMobileDevice = ref(false)
+const isPortrait = ref(false)
+const isTryingRotate = ref(false)
+const showRotateGuide = computed(() => isMobileDevice.value && isPortrait.value)
 const permissionStore = usePermissionStore()
 const { isLoaded, user } = storeToRefs(permissionStore)
 const githubStore = useGitHubStore()
@@ -28,8 +33,75 @@ const roleListStore = useRoleListStore()
 const userListStore = useUserListStore()
 const pushRecordStore = usePushRecordStore()
 const router = useRouter()
+let removeRotateGestureListener: (() => void) | null = null
+
+function detectMobileDevice() {
+  const ua = navigator.userAgent || ''
+  const coarsePointer = window.matchMedia('(pointer: coarse)').matches
+  const smallViewport = Math.min(window.innerWidth, window.innerHeight) <= 1024
+  const mobileUA = /Android|iPhone|iPad|iPod|Mobile|Windows Phone|HarmonyOS/i.test(ua)
+  return mobileUA || (coarsePointer && smallViewport)
+}
+
+function updateOrientation() {
+  isPortrait.value = window.matchMedia('(orientation: portrait)').matches
+}
+
+async function tryLockLandscape(useFullscreen: boolean) {
+  if (!isMobileDevice.value) return
+  const orientation = window.screen?.orientation as
+    | (ScreenOrientation & { lock?: (mode: string) => Promise<void> })
+    | undefined
+  if (!orientation || typeof orientation.lock !== 'function') return
+
+  isTryingRotate.value = true
+  try {
+    if (useFullscreen && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen()
+    }
+    await orientation.lock('landscape')
+  } catch {
+    // Some browsers require explicit user gesture or do not support orientation lock.
+  } finally {
+    isTryingRotate.value = false
+    updateOrientation()
+  }
+}
+
+function bindFirstGestureRotate() {
+  const handler = () => {
+    void tryLockLandscape(true)
+    if (removeRotateGestureListener) {
+      removeRotateGestureListener()
+      removeRotateGestureListener = null
+    }
+  }
+
+  window.addEventListener('touchstart', handler, { passive: true, once: true })
+  window.addEventListener('click', handler, { once: true })
+  removeRotateGestureListener = () => {
+    window.removeEventListener('touchstart', handler)
+    window.removeEventListener('click', handler)
+  }
+}
+
+function handleViewportChange() {
+  updateOrientation()
+  if (isMobileDevice.value && isPortrait.value) {
+    void tryLockLandscape(false)
+  }
+}
 
 onMounted(async () => {
+  isMobileDevice.value = detectMobileDevice()
+  updateOrientation()
+  if (isMobileDevice.value) {
+    bindFirstGestureRotate()
+    window.addEventListener('resize', handleViewportChange)
+    window.addEventListener('orientationchange', handleViewportChange)
+    void tryLockLandscape(false)
+  }
+
   const token = localStorage.getItem('token')
   if (token) {
     try {
@@ -59,6 +131,13 @@ watch(
   },
   { immediate: true },
 )
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleViewportChange)
+  window.removeEventListener('orientationchange', handleViewportChange)
+  removeRotateGestureListener?.()
+  removeRotateGestureListener = null
+})
 
 async function onLoggedIn(user: UserProfileDto) {
   currentUser.value = user
@@ -118,6 +197,12 @@ async function onLogout() {
         <router-view></router-view>
       </div>
     </main>
+    <div v-if="showRotateGuide" class="rotate-guide">
+      <span>检测到手机竖屏，已尝试自动切换横屏以提升交互体验</span>
+      <button class="rotate-guide-button" :disabled="isTryingRotate" @click="tryLockLandscape(true)">
+        {{ isTryingRotate ? '切换中…' : '立即横屏' }}
+      </button>
+    </div>
   </div>
 
   <AuthDialog v-if="showAuthDialog" @close="showAuthDialog = false" @logged-in="onLoggedIn" />
@@ -127,6 +212,7 @@ async function onLogout() {
 <style scoped>
 .user-layout {
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -148,5 +234,47 @@ async function onLogout() {
   width: 100%;
   height: 100%;
   overflow: auto;
+}
+
+.rotate-guide {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 90%, var(--color-primary) 10%);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border) 70%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.rotate-guide-button {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 12px;
+}
+
+.rotate-guide-button:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+@media (orientation: landscape) and (max-width: 1024px) {
+  .rotate-guide {
+    display: none;
+  }
 }
 </style>

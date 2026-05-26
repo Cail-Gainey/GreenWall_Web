@@ -51,6 +51,10 @@ const activePatternRandom = ref(false)
 const previewCells = ref<Set<string>>(new Set())
 const previewLevels = ref<Map<string, number>>(new Map())
 const previewEnabled = ref(true)
+const isTouchDevice = ref(false)
+const showTouchExitPreview = computed(
+  () => isTouchDevice.value && activeTool.value === 'pattern' && previewEnabled.value,
+)
 
 const rows = computed(() => 7)
 const totalCols = computed(() => calcTotalCols(props.year))
@@ -309,6 +313,7 @@ const handlePatternSelect = (pattern: boolean[][], level: number, random: boolea
 }
 
 onMounted(() => {
+  isTouchDevice.value = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window
   resizeGridForYear(props.year)
 })
 
@@ -423,6 +428,13 @@ const handleJsonImport = async (event: Event) => {
       />
     </div>
     <div class="edit-canvas">
+      <button
+        v-if="showTouchExitPreview"
+        class="touch-preview-exit-btn"
+        @click="handleRightClick"
+      >
+        退出预览
+      </button>
       <div
         class="edit-preview"
         @mouseleave="clearPreview"
@@ -517,6 +529,20 @@ const handleJsonImport = async (event: Event) => {
 .edit-canvas {
   position: relative;
   padding-bottom: 84px;
+}
+
+.touch-preview-exit-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-main);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .json-tools {

@@ -83,6 +83,10 @@ const showGithubPush = computed(() => !isLoggedIn.value || canGithubPush.value);
 const showGithubQuery = computed(() => !isLoggedIn.value || canGithubQuery.value);
 const showCommunityPublish = computed(() => !isLoggedIn.value || canCommunityPublish.value);
 const loginHint = computed(() => (isLoggedIn.value ? '' : '请先登录'));
+const isTouchDevice = ref(false);
+const showTouchExitPreview = computed(
+  () => isTouchDevice.value && activeTool.value === 'pattern' && previewEnabled.value,
+);
 const toolPermissionMap: Record<string, string> = {
   brush: 'app:graph:brush',
   eraser: 'app:graph:eraser',
@@ -494,6 +498,7 @@ onMounted(async () => {
   } catch {
     githubOAuthEnabled.value = true;
   }
+  isTouchDevice.value = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
   window.addEventListener('contextmenu', handleGlobalContextMenu, { capture: true });
 });
 
@@ -880,6 +885,10 @@ const handleRightClick = () => {
   isPointerDown.value = false;
 };
 
+const handleTouchExitPreview = () => {
+  handleRightClick();
+};
+
 const handleContextMenu = (event: MouseEvent) => {
   event.preventDefault();
   handleRightClick();
@@ -1037,6 +1046,13 @@ const paint = (c: number, r: number) => {
             {{ loginHint || '上传图案到社区' }}
           </n-tooltip>
         </div>
+        <button
+          v-if="showTouchExitPreview"
+          class="touch-preview-exit-btn"
+          @click="handleTouchExitPreview"
+        >
+          退出预览
+        </button>
       </div>
       
       <GraphTableTemplate
@@ -1210,7 +1226,8 @@ const paint = (c: number, r: number) => {
 .graph-header {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -1348,6 +1365,16 @@ const paint = (c: number, r: number) => {
 
 .tooltip-wrapper {
   display: inline-flex;
+}
+
+.touch-preview-exit-btn {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-main);
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .community-actions {
