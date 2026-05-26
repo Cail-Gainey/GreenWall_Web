@@ -947,6 +947,50 @@ export interface DashboardTrendDto {
   fail: number
 }
 
+export interface DashboardTodayMetricsDto {
+  todayLogins: string
+  todayFailedLogins: string
+  todayOperations: string
+  newUsersToday: string
+  newPatternsToday: string
+}
+
+export interface DashboardUserBreakdownDto {
+  activeUserCount: string
+  disabledUserCount: string
+}
+
+export interface DashboardPatternMetricsDto {
+  totalViews: string
+  totalLikes: string
+  totalComments: string
+  totalFavorites: string
+}
+
+export interface DashboardSystemHealthDto {
+  serverLogErrors24h: string
+  serverLogWarnings24h: string
+  failedLogins24h: string
+  operFailures24h: string
+}
+
+export interface DashboardTopPatternDto {
+  id: string
+  title: string
+  viewCount: string
+  likeCount: string
+  commentCount: string
+  creatorName?: string
+}
+
+export interface DashboardTopContributorDto {
+  id: string
+  account: string
+  nickName?: string
+  avatar?: string
+  patternCount: string
+}
+
 export interface DashboardSummaryDto {
   userCount: string
   roleCount: string
@@ -956,8 +1000,14 @@ export interface DashboardSummaryDto {
   configCount: string
   loginLogCount: string
   operLogCount: string
+  today: DashboardTodayMetricsDto
+  userBreakdown: DashboardUserBreakdownDto
+  patternMetrics: DashboardPatternMetricsDto
+  systemHealth: DashboardSystemHealthDto
   loginTrend: DashboardTrendDto[]
   operTrend: DashboardTrendDto[]
+  topPatterns: DashboardTopPatternDto[]
+  topContributors: DashboardTopContributorDto[]
   recentLoginLogs: LoginLogDto[]
   recentOperLogs: OperLogDto[]
 }
