@@ -58,6 +58,27 @@ export class TimeFormatter {
     return `${hh}:${mm}:${ss}`
   }
 
+  /**
+   * @description 中文相对时间，如「3 分钟前」「20 小时前」「3 个月前」。
+   */
+  static formatRelative(input: DateInput, now: Date = new Date(), fallback = '-'): string {
+    const date = TimeFormatter.parse(input)
+    if (!date) return fallback
+    const diff = Math.max(0, now.getTime() - date.getTime())
+    const sec = Math.floor(diff / 1000)
+    if (sec < 60) return '刚刚'
+    const min = Math.floor(sec / 60)
+    if (min < 60) return `${min} 分钟前`
+    const hr = Math.floor(min / 60)
+    if (hr < 24) return `${hr} 小时前`
+    const day = Math.floor(hr / 24)
+    if (day < 30) return `${day} 天前`
+    const month = Math.floor(day / 30)
+    if (month < 12) return `${month} 个月前`
+    const year = Math.floor(month / 12)
+    return `${year} 年前`
+  }
+
   private static pad(value: number) {
     return String(value).padStart(2, '0')
   }
@@ -68,3 +89,4 @@ export class TimeFormatter {
 }
 
 export const formatDateTime = TimeFormatter.formatDateTime
+export const formatRelative = TimeFormatter.formatRelative

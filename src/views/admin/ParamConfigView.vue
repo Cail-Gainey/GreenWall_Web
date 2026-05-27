@@ -33,6 +33,7 @@ const configDefinitions: Record<string, ConfigDefinition> = {
   'sys:data:migration:last_time': { label: '数据迁移最近执行时间', readOnly: true, protected: true, description: '系统自动记录，无需手动修改。' },
   'app:upload:max_mb': { label: '默认上传大小限制(MB)', dictType: 'sys_upload_size_mb', protected: true },
   'app:session:timeout_minutes': { label: 'Session 超时时间(分钟)', dictType: 'sys_session_timeout', protected: true },
+  'sys:announcement:max_count': { label: '公告弹窗最多展示条数', protected: true, description: '范围 1-100，默认 20。修改后用户端最长 1 分钟内生效。' },
   'app:name': { label: '系统名称', protected: true },
   'app:version': { label: '系统版本', protected: true },
 }

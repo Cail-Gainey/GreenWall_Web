@@ -939,6 +939,63 @@ export interface ConfigUpdateDto extends ConfigCreateDto {
   id: string
 }
 
+// ========== 公告 ==========
+
+export interface AnnouncementQueryDto {
+  pageIndex?: number
+  pageSize?: number
+  keyword?: string
+  status?: number
+  priority?: number
+}
+
+export interface AnnouncementDto {
+  id: string
+  title: string
+  content?: string
+  priority: number
+  isPinned: boolean
+  sort: number
+  status: number
+  startTime?: string
+  endTime?: string
+  createTime: string
+  updateTime?: string
+}
+
+export interface AnnouncementCreateDto {
+  title: string
+  content?: string
+  priority: number
+  isPinned: boolean
+  sort: number
+  status: number
+  startTime?: string | null
+  endTime?: string | null
+}
+
+export interface AnnouncementUpdateDto extends AnnouncementCreateDto {
+  id: string
+}
+
+/**
+ * @description 用户端激活公告响应。
+ */
+export interface ActiveAnnouncementDto {
+  id: string
+  title: string
+  content?: string
+  priority: number
+  isPinned: boolean
+  startTime?: string
+  endTime?: string
+  createTime: string
+  /**
+   * @description 服务端最后修改时间（毫秒时间戳），用于客户端缓存版本比对。
+   */
+  updatedAt: number
+}
+
 // ========== 仪表盘 ==========
 
 export interface DashboardTrendDto {

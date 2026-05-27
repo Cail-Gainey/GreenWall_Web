@@ -4,7 +4,7 @@
  */
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NButton, NDropdown, NSpace, NAvatar } from 'naive-ui'
+import { NButton, NDropdown, NSpace, NAvatar, NBadge } from 'naive-ui'
 import { useTheme, type Theme } from '../composables/useTheme'
 import { createThemeDropdownOptions, getThemeLabel, getThemeSwatchStyle } from '../theme/themeOptions'
 import { usePermissionStore } from '../stores/permission'
@@ -12,6 +12,8 @@ import type { UserProfileDto } from '../api/types'
 import { resolveAvatar, userAvatarFallback } from '../utils/avatar'
 import logoUrl from '../assets/logo.png'
 import { useAppConfigStore } from '../stores/appConfig'
+import { useAnnouncementStore } from '../stores/announcement'
+import { storeToRefs } from 'pinia'
 
 const props = withDefaults(defineProps<{
   user: UserProfileDto | null
@@ -25,6 +27,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   openAuth: []
   openProfile: []
+  openAnnouncements: []
   logout: []
 }>()
 
@@ -34,6 +37,8 @@ const route = useRoute()
 const { currentTheme, setTheme } = useTheme()
 const { hasPermission, hasRole } = usePermissionStore()
 const appConfigStore = useAppConfigStore()
+const announcementStore = useAnnouncementStore()
+const { unreadList } = storeToRefs(announcementStore)
 
 /**
  * @description 主题下拉菜单选项。
@@ -61,6 +66,7 @@ const currentThemeLabel = computed(() => getThemeLabel(currentTheme.value))
 const currentThemeSwatchStyle = computed(() => getThemeSwatchStyle(currentTheme.value))
 const appName = computed(() => appConfigStore.getValue('app:name') || 'GreenWall')
 const appVersion = computed(() => appConfigStore.getValue('app:version'))
+const announcementUnreadCount = computed(() => unreadList.value.length)
 const canVisitAdmin = computed(() => {
   if (hasRole('admin')) return true
   const adminPerms = ['sys:dashboard', 'sys:user:list', 'sys:role:list', 'sys:menu:list']
@@ -133,6 +139,33 @@ function goPrivacy() {
       <n-button v-if="user && canVisitAdmin" quaternary size="small" @click="router.push('/admin')">
         管理后台
       </n-button>
+      <n-badge
+        :value="announcementUnreadCount"
+        :max="99"
+        :show="announcementUnreadCount > 0"
+        :offset="[-4, 4]"
+        processing
+      >
+        <n-button quaternary size="small" aria-label="查看公告" @click="emit('openAnnouncements')">
+          <span class="announcement-trigger" aria-hidden="true">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M6 8a6 6 0 0112 0v5l1.5 2.5h-15L6 13z"></path>
+              <path d="M10 19a2 2 0 004 0"></path>
+            </svg>
+            <span class="announcement-label">公告</span>
+          </span>
+        </n-button>
+      </n-badge>
       <n-dropdown :options="themeOptions" @select="handleThemeSelect">
         <n-button quaternary size="small">
           <span class="theme-trigger"><span class="theme-swatch" :style="currentThemeSwatchStyle"></span>主题：{{ currentThemeLabel }}</span>
@@ -222,6 +255,18 @@ function goPrivacy() {
 
 .theme-swatch {
   flex-shrink: 0;
+}
+
+.announcement-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+}
+
+.announcement-label {
+  font-size: 13px;
+  color: inherit;
 }
 
 </style>

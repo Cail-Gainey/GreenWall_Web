@@ -126,6 +126,12 @@ const router = createRouter({
           meta: { permission: 'sys:param:list', title: '参数配置' }
         },
         {
+          path: 'announcements',
+          name: 'admin-announcements',
+          component: () => import('../views/admin/AnnouncementList.vue'),
+          meta: { permission: 'sys:announcement:list', title: '公告管理' }
+        },
+        {
           path: 'logs/oper',
           name: 'admin-oper-logs',
           component: () => import('../views/admin/logs/OperLogView.vue'),

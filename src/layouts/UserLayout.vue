@@ -8,6 +8,7 @@ import { useRouter } from 'vue-router'
 import Header from '../components/Header.vue'
 import ProfileDialog from '../components/ProfileDialog.vue'
 import AuthDialog from '../components/AuthDialog.vue'
+import AnnouncementDialog from '../components/AnnouncementDialog.vue'
 import { getMe, logout } from '../api/auth'
 import { usePermissionStore } from '../stores/permission'
 import { useGitHubStore } from '../stores/github'
@@ -16,10 +17,12 @@ import { useMenuTreeStore } from '../stores/menuTree'
 import { useRoleListStore } from '../stores/roleList'
 import { useUserListStore } from '../stores/userList'
 import { usePushRecordStore } from '../stores/pushRecord'
+import { useAnnouncementStore } from '../stores/announcement'
 import type { UserProfileDto } from '../api/types'
 
 const showAuthDialog = ref(false)
 const showProfileDialog = ref(false)
+const showAnnouncementDialog = ref(false)
 const currentUser = ref<UserProfileDto | null>(null)
 const isMobileDevice = ref(false)
 const isPortrait = ref(false)
@@ -32,6 +35,7 @@ const menuTreeStore = useMenuTreeStore()
 const roleListStore = useRoleListStore()
 const userListStore = useUserListStore()
 const pushRecordStore = usePushRecordStore()
+const announcementStore = useAnnouncementStore()
 const router = useRouter()
 let removeRotateGestureListener: (() => void) | null = null
 
@@ -120,6 +124,20 @@ onMounted(async () => {
     githubStore.clear()
     pushRecordStore.reset()
   }
+
+  // 公告：加载激活列表 + 启动热加载，进入时若有未读项则自动弹窗
+  try {
+    await announcementStore.load(true)
+    if (announcementStore.unreadList.length > 0) {
+      showAnnouncementDialog.value = true
+    }
+  } catch {
+    // 离线/接口失败时使用持久化缓存兜底，不阻塞页面
+    if (announcementStore.unreadList.length > 0) {
+      showAnnouncementDialog.value = true
+    }
+  }
+  announcementStore.startHotReload()
 })
 
 watch(
@@ -137,6 +155,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('orientationchange', handleViewportChange)
   removeRotateGestureListener?.()
   removeRotateGestureListener = null
+  announcementStore.stopHotReload()
 })
 
 async function onLoggedIn(user: UserProfileDto) {
@@ -166,6 +185,12 @@ function onOpenProfile() {
   showProfileDialog.value = true
 }
 
+function onOpenAnnouncements() {
+  // 顶栏铃铛触发：直接打开历史时间线，不重置已读状态
+  showAnnouncementDialog.value = true
+  void announcementStore.load(true).catch(() => {})
+}
+
 async function onLogout() {
   try {
     await logout()
@@ -189,6 +214,7 @@ async function onLogout() {
         :user="currentUser"
         @open-auth="showAuthDialog = true"
         @open-profile="onOpenProfile"
+        @open-announcements="onOpenAnnouncements"
         @logout="onLogout"
       />
     </div>
@@ -207,6 +233,7 @@ async function onLogout() {
 
   <AuthDialog v-if="showAuthDialog" @close="showAuthDialog = false" @logged-in="onLoggedIn" />
   <ProfileDialog v-model:show="showProfileDialog" />
+  <AnnouncementDialog v-model:show="showAnnouncementDialog" />
 </template>
 
 <style scoped>
