@@ -3,7 +3,7 @@
  * @file 个人信息弹窗：展示与编辑个人资料。
  */
 import { computed, onMounted, ref, watch } from 'vue'
-import { NAlert, NAvatar, NButton, NCard, NCheckbox, NForm, NFormItemGi, NGrid, NInput, NModal, NSelect, NSpace, useDialog } from 'naive-ui'
+import { NAlert, NAvatar, NButton, NCard, NCheckbox, NForm, NFormItem, NFormItemGi, NGrid, NInput, NModal, NSelect, NSpace, useDialog } from 'naive-ui'
 import { changePassword, getMe } from '../api/auth'
 import { deleteCurrentUserData, updateProfile, uploadAvatar } from '../api/user'
 import { usePermissionStore } from '../stores/permission'
