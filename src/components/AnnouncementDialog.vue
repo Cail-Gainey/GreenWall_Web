@@ -8,6 +8,7 @@ import { storeToRefs } from 'pinia'
 import { NModal, NCard, NEmpty, NScrollbar, NSpace, NTag, NButton } from 'naive-ui'
 import { useAnnouncementStore } from '../stores/announcement'
 import { formatRelative, formatDateTime } from '../utils/time'
+import { renderMarkdown } from '../utils/markdown'
 import type { ActiveAnnouncementDto } from '../api/types'
 
 const props = defineProps<{
@@ -151,7 +152,11 @@ function handleResetRead() {
                       已读
                     </n-tag>
                   </header>
-                  <p v-if="item.content" class="timeline-content">{{ item.content }}</p>
+                  <div
+                    v-if="item.content"
+                    class="timeline-content markdown-body"
+                    v-html="renderMarkdown(item.content)"
+                  ></div>
                   <time class="timeline-time" :title="formatDateTime(item.startTime || item.createTime)">
                     {{ formatRelative(item.startTime || item.createTime) }}
                   </time>
@@ -369,9 +374,97 @@ function handleResetRead() {
   font-size: 13px;
   line-height: 1.55;
   color: var(--color-text-muted);
-  white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
+}
+
+.markdown-body :deep(p) {
+  margin: 0 0 6px;
+}
+
+.markdown-body :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3),
+.markdown-body :deep(h4) {
+  margin: 8px 0 4px;
+  color: var(--color-text-main);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.markdown-body :deep(h1) { font-size: 16px; }
+.markdown-body :deep(h2) { font-size: 15px; }
+.markdown-body :deep(h3),
+.markdown-body :deep(h4) { font-size: 14px; }
+
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+.markdown-body :deep(li) {
+  margin: 2px 0;
+}
+
+.markdown-body :deep(a) {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.markdown-body :deep(a:hover) {
+  text-decoration: underline;
+}
+
+.markdown-body :deep(code) {
+  background: var(--color-bg-light);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-family: var(--font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+}
+
+.markdown-body :deep(pre) {
+  background: var(--color-bg-light);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 6px 0;
+  overflow-x: auto;
+  font-size: 12px;
+}
+
+.markdown-body :deep(pre code) {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.markdown-body :deep(blockquote) {
+  margin: 6px 0;
+  padding: 4px 10px;
+  border-left: 3px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.markdown-body :deep(hr) {
+  border: none;
+  border-top: 1px dashed var(--color-border);
+  margin: 8px 0;
+}
+
+.markdown-body :deep(strong) {
+  color: var(--color-text-main);
+}
+
+.markdown-body :deep(img) {
+  max-width: 100%;
+  border-radius: 6px;
 }
 
 .timeline-time {

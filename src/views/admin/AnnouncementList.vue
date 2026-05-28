@@ -17,6 +17,9 @@ import {
   NSwitch,
   NInputNumber,
   NTag,
+  NTabs,
+  NTabPane,
+  NEmpty,
   NPagination,
   NPopconfirm,
   useMessage,
@@ -29,6 +32,7 @@ import {
   getAnnouncementPage,
   updateAnnouncement,
 } from '../../api/announcement'
+import { renderMarkdown } from '../../utils/markdown'
 import type { AnnouncementDto } from '../../api/types'
 
 const message = useMessage()
@@ -81,6 +85,7 @@ const showForm = ref(false)
 const formMode = ref<'create' | 'edit'>('create')
 const submitting = ref(false)
 const form = ref<AnnouncementForm>(createEmptyForm())
+const contentTab = ref<'edit' | 'preview'>('edit')
 
 function createEmptyForm(): AnnouncementForm {
   return {
@@ -216,6 +221,7 @@ const fetchList = async () => {
 const openCreate = () => {
   formMode.value = 'create'
   form.value = createEmptyForm()
+  contentTab.value = 'edit'
   showForm.value = true
 }
 
@@ -232,6 +238,7 @@ const openEdit = (row: AnnouncementDto) => {
     startTime: row.startTime ? new Date(row.startTime).getTime() : null,
     endTime: row.endTime ? new Date(row.endTime).getTime() : null,
   }
+  contentTab.value = 'edit'
   showForm.value = true
 }
 
@@ -364,12 +371,34 @@ onMounted(() => {
           <n-input v-model:value="form.title" maxlength="200" show-count placeholder="请输入公告标题" />
         </n-form-item>
         <n-form-item label="正文">
-          <n-input
-            v-model:value="form.content"
-            type="textarea"
-            :autosize="{ minRows: 5, maxRows: 12 }"
-            placeholder="支持 Markdown / 纯文本"
-          />
+          <div class="content-editor">
+            <n-tabs
+              v-model:value="contentTab"
+              type="line"
+              size="small"
+              animated
+              class="content-tabs"
+            >
+              <n-tab-pane name="edit" tab="编辑">
+                <n-input
+                  v-model:value="form.content"
+                  type="textarea"
+                  :autosize="{ minRows: 6, maxRows: 14 }"
+                  placeholder="支持 Markdown：**粗体** *斜体* [链接](https://...) `code` # 标题 - 列表 > 引用"
+                />
+              </n-tab-pane>
+              <n-tab-pane name="preview" tab="预览">
+                <div class="md-preview">
+                  <div
+                    v-if="form.content && form.content.trim()"
+                    class="markdown-body"
+                    v-html="renderMarkdown(form.content)"
+                  ></div>
+                  <n-empty v-else description="暂无内容可预览" size="small" />
+                </div>
+              </n-tab-pane>
+            </n-tabs>
+          </div>
         </n-form-item>
         <n-form-item label="优先级" path="priority">
           <n-select
@@ -418,5 +447,112 @@ onMounted(() => {
 <style scoped>
 .muted {
   color: var(--color-text-muted);
+}
+
+.content-editor {
+  width: 100%;
+}
+
+.content-tabs :deep(.n-tabs-nav) {
+  margin-bottom: 8px;
+}
+
+.md-preview {
+  min-height: 132px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  background: var(--color-bg-light);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
+.markdown-body :deep(p) {
+  margin: 0 0 6px;
+}
+
+.markdown-body :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3),
+.markdown-body :deep(h4) {
+  margin: 10px 0 6px;
+  color: var(--color-text-main);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.markdown-body :deep(h1) { font-size: 18px; }
+.markdown-body :deep(h2) { font-size: 16px; }
+.markdown-body :deep(h3) { font-size: 15px; }
+.markdown-body :deep(h4) { font-size: 14px; }
+
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+  margin: 4px 0;
+  padding-left: 22px;
+}
+
+.markdown-body :deep(li) {
+  margin: 2px 0;
+}
+
+.markdown-body :deep(a) {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.markdown-body :deep(a:hover) {
+  text-decoration: underline;
+}
+
+.markdown-body :deep(code) {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-family: var(--font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+}
+
+.markdown-body :deep(pre) {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 6px 0;
+  overflow-x: auto;
+  font-size: 12px;
+}
+
+.markdown-body :deep(pre code) {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.markdown-body :deep(blockquote) {
+  margin: 6px 0;
+  padding: 4px 10px;
+  border-left: 3px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.markdown-body :deep(hr) {
+  border: none;
+  border-top: 1px dashed var(--color-border);
+  margin: 8px 0;
+}
+
+.markdown-body :deep(strong) {
+  color: var(--color-text-main);
+}
+
+.markdown-body :deep(img) {
+  max-width: 100%;
+  border-radius: 6px;
 }
 </style>
