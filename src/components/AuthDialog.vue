@@ -302,16 +302,18 @@ onMounted(async () => {
     <n-card style="width: min(520px, 92vw);" title="账号中心" :bordered="false">
       <n-tabs v-model:value="mode" type="line">
         <n-tab-pane name="login" tab="登录">
-          <n-form @keydown.enter.prevent="handleEnterSubmit">
-            <n-form-item label="账号">
-              <n-input v-model:value="loginAccount" placeholder="请输入账号" />
-            </n-form-item>
-            <n-form-item label="密码">
-              <n-input v-model:value="loginPassword" type="password" placeholder="请输入密码" />
-            </n-form-item>
-            <n-form-item label="图片验证码">
-              <CaptchaInput v-model:captchaId="loginCaptchaId" v-model:captchaCode="loginCaptchaCode" ref="loginCaptchaRef" />
-            </n-form-item>
+          <n-form>
+            <div @keydown.enter.prevent="handleEnterSubmit">
+              <n-form-item label="账号">
+                <n-input v-model:value="loginAccount" placeholder="请输入账号" />
+              </n-form-item>
+              <n-form-item label="密码">
+                <n-input v-model:value="loginPassword" type="password" placeholder="请输入密码" />
+              </n-form-item>
+              <n-form-item label="图片验证码">
+                <CaptchaInput v-model:captchaId="loginCaptchaId" v-model:captchaCode="loginCaptchaCode" ref="loginCaptchaRef" />
+              </n-form-item>
+            </div>
             <n-space justify="space-between">
               <n-button secondary @click="emit('close')">取消</n-button>
               <n-button type="primary" :loading="loading" @click="handleLogin">登录</n-button>
@@ -320,36 +322,38 @@ onMounted(async () => {
         </n-tab-pane>
 
         <n-tab-pane v-if="allowRegister" name="register" tab="注册">
-          <n-form @keydown.enter.prevent="handleEnterSubmit">
-            <n-form-item label="账号">
-              <n-input v-model:value="regAccount" placeholder="请输入账号" />
-            </n-form-item>
-            <n-form-item label="密码">
-              <n-input v-model:value="regPassword" type="password" placeholder="至少 6 位，需包含字母和数字" />
-            </n-form-item>
-            <n-form-item label="确认密码">
-              <n-input v-model:value="regConfirmPassword" type="password" placeholder="再次输入密码" />
-            </n-form-item>
-            <n-form-item label="邮箱">
-              <n-input v-model:value="regEmail" placeholder="email@example.com" />
-            </n-form-item>
-            <n-form-item v-if="emailVerifyEnabled" label="图片验证码">
-              <CaptchaInput v-model:captchaId="regCaptchaId" v-model:captchaCode="regCaptchaCode" ref="regCaptchaRef" />
-            </n-form-item>
-            <n-form-item v-if="emailVerifyEnabled" label="邮箱验证码">
-              <n-space>
-                <n-input v-model:value="regCode" placeholder="6 位验证码" style="width: 160px;" />
-                <n-button :disabled="!canSendCode" @click="handleSendCode(regEmail)">
-                  {{ countdown ? `${countdown}s` : '发送验证码' }}
-                </n-button>
-              </n-space>
-            </n-form-item>
-            <n-form-item label="隐私条款">
-              <n-checkbox v-model:checked="regPrivacyConsent">
-                我已阅读并同意
-                <n-button text size="tiny" @click.stop="openPrivacy">隐私条款</n-button>
-              </n-checkbox>
-            </n-form-item>
+          <n-form>
+            <div @keydown.enter.prevent="handleEnterSubmit">
+              <n-form-item label="账号">
+                <n-input v-model:value="regAccount" placeholder="请输入账号" />
+              </n-form-item>
+              <n-form-item label="密码">
+                <n-input v-model:value="regPassword" type="password" placeholder="至少 6 位，需包含字母和数字" />
+              </n-form-item>
+              <n-form-item label="确认密码">
+                <n-input v-model:value="regConfirmPassword" type="password" placeholder="再次输入密码" />
+              </n-form-item>
+              <n-form-item label="邮箱">
+                <n-input v-model:value="regEmail" placeholder="email@example.com" />
+              </n-form-item>
+              <n-form-item v-if="emailVerifyEnabled" label="图片验证码">
+                <CaptchaInput v-model:captchaId="regCaptchaId" v-model:captchaCode="regCaptchaCode" ref="regCaptchaRef" />
+              </n-form-item>
+              <n-form-item v-if="emailVerifyEnabled" label="邮箱验证码">
+                <n-space>
+                  <n-input v-model:value="regCode" placeholder="6 位验证码" style="width: 160px;" />
+                  <n-button :disabled="!canSendCode" @click="handleSendCode(regEmail)">
+                    {{ countdown ? `${countdown}s` : '发送验证码' }}
+                  </n-button>
+                </n-space>
+              </n-form-item>
+              <n-form-item label="隐私条款">
+                <n-checkbox v-model:checked="regPrivacyConsent">
+                  我已阅读并同意
+                  <n-button text size="tiny" @click.stop="openPrivacy">隐私条款</n-button>
+                </n-checkbox>
+              </n-form-item>
+            </div>
             <n-space justify="space-between">
               <n-button secondary @click="emit('close')">取消</n-button>
               <n-button type="primary" :loading="loading" @click="handleRegister">注册</n-button>
@@ -358,27 +362,29 @@ onMounted(async () => {
         </n-tab-pane>
 
         <n-tab-pane name="forgot" tab="忘记密码">
-          <n-form @keydown.enter.prevent="handleEnterSubmit">
-            <n-form-item label="邮箱">
-              <n-input v-model:value="forgotEmail" placeholder="email@example.com" />
-            </n-form-item>
-            <n-form-item v-if="emailVerifyEnabled" label="图片验证码">
-              <CaptchaInput v-model:captchaId="forgotCaptchaId" v-model:captchaCode="forgotCaptchaCode" ref="forgotCaptchaRef" />
-            </n-form-item>
-            <n-form-item v-if="emailVerifyEnabled" label="邮箱验证码">
-              <n-space>
-                <n-input v-model:value="forgotCode" placeholder="6 位验证码" style="width: 160px;" />
-                <n-button :disabled="!canSendCode" @click="handleSendCode(forgotEmail)">
-                  {{ countdown ? `${countdown}s` : '发送验证码' }}
-                </n-button>
-              </n-space>
-            </n-form-item>
-            <n-form-item label="新密码">
-              <n-input v-model:value="forgotNewPassword" type="password" placeholder="至少 6 位，需包含字母和数字" />
-            </n-form-item>
-            <n-form-item label="确认新密码">
-              <n-input v-model:value="forgotConfirmPassword" type="password" placeholder="再次输入密码" />
-            </n-form-item>
+          <n-form>
+            <div @keydown.enter.prevent="handleEnterSubmit">
+              <n-form-item label="邮箱">
+                <n-input v-model:value="forgotEmail" placeholder="email@example.com" />
+              </n-form-item>
+              <n-form-item v-if="emailVerifyEnabled" label="图片验证码">
+                <CaptchaInput v-model:captchaId="forgotCaptchaId" v-model:captchaCode="forgotCaptchaCode" ref="forgotCaptchaRef" />
+              </n-form-item>
+              <n-form-item v-if="emailVerifyEnabled" label="邮箱验证码">
+                <n-space>
+                  <n-input v-model:value="forgotCode" placeholder="6 位验证码" style="width: 160px;" />
+                  <n-button :disabled="!canSendCode" @click="handleSendCode(forgotEmail)">
+                    {{ countdown ? `${countdown}s` : '发送验证码' }}
+                  </n-button>
+                </n-space>
+              </n-form-item>
+              <n-form-item label="新密码">
+                <n-input v-model:value="forgotNewPassword" type="password" placeholder="至少 6 位，需包含字母和数字" />
+              </n-form-item>
+              <n-form-item label="确认新密码">
+                <n-input v-model:value="forgotConfirmPassword" type="password" placeholder="再次输入密码" />
+              </n-form-item>
+            </div>
             <n-space justify="space-between">
               <n-button secondary @click="emit('close')">取消</n-button>
               <n-button type="primary" :loading="loading" @click="handleReset">重置</n-button>
