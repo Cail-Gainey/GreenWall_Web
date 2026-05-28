@@ -28,6 +28,7 @@ const activeTool = ref('brush') // 'brush' or 'eraser' or 'pattern'
 const activePattern = ref<boolean[][] | null>(null)
 const activePatternLevel = ref<number>(4)
 const activePatternRandom = ref(false)
+const activePatternLevels = ref<number[][] | null>(null)
 const clearSignal = ref(0)
 const requestClear = () => {
   clearSignal.value++;
@@ -42,6 +43,7 @@ provide('activeTool', activeTool)
 provide('activePattern', activePattern)
 provide('activePatternLevel', activePatternLevel)
 provide('activePatternRandom', activePatternRandom)
+provide('activePatternLevels', activePatternLevels)
 provide('clearSignal', clearSignal)
 provide('requestClear', requestClear)
 provide('fillAllSignal', fillAllSignal)

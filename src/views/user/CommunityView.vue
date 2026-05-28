@@ -12,6 +12,8 @@ import {
   NIcon,
   NPagination,
   NSelect,
+  NTabs,
+  NTabPane,
   NTooltip,
   NSpace,
   NEmpty,
@@ -53,6 +55,8 @@ import PatternEditorModal from '../../components/PatternEditorModal.vue'
 import PatternDetailTemplate from '../../components/PatternDetailTemplate.vue'
 import PatternCard from '../../components/PatternCard.vue'
 import PatternExportDialog from '../../components/PatternExportDialog.vue'
+import StampCommunityList from '../../components/StampCommunityList.vue'
+import StampEditorModal from '../../components/StampEditorModal.vue'
 import { calcTotalCols } from '../../utils/graph'
 import { TimeFormatter } from '../../utils/time'
 import { resolveAvatar, userAvatarFallback } from '../../utils/avatar'
@@ -71,6 +75,18 @@ const publishVisibility = ref<'public' | 'followers' | 'private'>('public')
 const publishGrid = ref<number[][]>([])
 const publishSubmitting = ref(false)
 const publishYear = ref(new Date().getFullYear())
+
+// 顶部 Tab：年图 / 模板
+const activeView = ref<'year' | 'stamp'>('year')
+const stampEditorVisible = ref(false)
+const viewTabOptions = [
+  { label: '年图', value: 'year' },
+  { label: '模板', value: 'stamp' },
+] as const
+
+function onStampPublishRequest() {
+  stampEditorVisible.value = true
+}
 
 const sort = ref<PatternSort>('view')
 const yearFilter = ref<number | null>(null)
@@ -776,6 +792,12 @@ onMounted(loadPatterns)
 
 <template>
   <div class="community-page">
+    <div class="view-tabs">
+      <n-tabs v-model:value="activeView" type="line" size="medium" justify-content="start" animated>
+        <n-tab-pane v-for="tab in viewTabOptions" :key="tab.value" :name="tab.value" :tab="tab.label" />
+      </n-tabs>
+    </div>
+    <div v-show="activeView === 'year'">
     <div class="community-header">
       <div>
         <div class="title">图案社区</div>
@@ -898,6 +920,13 @@ onMounted(loadPatterns)
         show-size-picker
       />
     </div>
+    </div>
+
+    <div v-show="activeView === 'stamp'">
+      <StampCommunityList @publish-request="onStampPublishRequest" />
+    </div>
+
+    <StampEditorModal v-model:show="stampEditorVisible" />
 
     <PatternDetailTemplate
       v-model:show="detailVisible"

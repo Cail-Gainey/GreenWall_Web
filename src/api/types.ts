@@ -996,6 +996,80 @@ export interface ActiveAnnouncementDto {
   updatedAt: number
 }
 
+// ========== 图案模板（印章） ==========
+
+/**
+ * @description 模板社区查询参数。
+ */
+export interface StampQueryDto {
+  pageIndex?: number
+  pageSize?: number
+  keyword?: string
+  /** time | imports，默认 time */
+  sortBy?: 'time' | 'imports'
+}
+
+/**
+ * @description 7x5 强度矩阵（7 行 × 5 列，0=空 1-4=强度）。
+ */
+export type StampCells = number[][]
+
+/**
+ * @description 社区模板（列表/详情共用）。
+ */
+export interface StampDto {
+  id: string
+  title: string
+  description?: string
+  cells: StampCells
+  importCount: string
+  creatorId: string
+  creatorName: string
+  creatorAvatar?: string
+  createTime: string
+  updateTime?: string
+  /** 是否已发布到社区 */
+  isPublished: boolean
+  publishedAt?: string | null
+  /** 当前请求用户是否已导入到收藏 */
+  isImported: boolean
+  /** 当前请求用户是否为创建者 */
+  isOwn: boolean
+}
+
+/**
+ * @description 创建模板请求。
+ */
+export interface StampCreateDto {
+  title: string
+  description?: string
+  cells: StampCells
+}
+
+/**
+ * @description 更新模板请求。
+ */
+export interface StampUpdateDto extends StampCreateDto {
+  id: string
+}
+
+/**
+ * @description 用户收藏（快照）项。
+ */
+export interface StampImportDto {
+  id: string
+  sourceStampId?: string | null
+  title: string
+  cells: StampCells
+  importedAt: string
+  /** 源模板是否仍然存在 */
+  sourceAvailable: boolean
+  /** 是否由当前用户创建（用于在收藏 Tab 显示「发布」按钮） */
+  isOwn: boolean
+  /** 源模板当前是否处于已发布状态 */
+  isPublished: boolean
+}
+
 // ========== 仪表盘 ==========
 
 export interface DashboardTrendDto {

@@ -47,6 +47,7 @@ const activeTool = ref<'brush' | 'eraser' | 'pattern' | 'auto' | 'random'>('brus
 const activeLevel = ref(4)
 const activePattern = ref<boolean[][] | null>(null)
 const activePatternRandom = ref(false)
+const activePatternLevels = ref<number[][] | null>(null)
 
 const previewCells = ref<Set<string>>(new Set())
 const previewLevels = ref<Map<string, number>>(new Map())
@@ -196,6 +197,7 @@ const getPatternOffsets = (pattern: boolean[][]) => {
 const applyPattern = (anchorC: number, anchorR: number) => {
   if (!activePattern.value) return
   const pattern = activePattern.value
+  const perCellLevels = activePatternLevels.value
   const { offsetC, offsetR } = getPatternOffsets(pattern)
   updateGrid((next) => {
     for (let rIndex = 0; rIndex < pattern.length; rIndex++) {
@@ -207,7 +209,15 @@ const applyPattern = (anchorC: number, anchorR: number) => {
         const targetR = anchorR + rIndex - offsetR
         if (!next[targetC] || next[targetC][targetR] === undefined) continue
         if (!isValidCell(targetC, targetR)) continue
-        const level = activePatternRandom.value ? Math.floor(Math.random() * 4) + 1 : activeLevel.value
+        const cellLevel = perCellLevels?.[rIndex]?.[cIndex]
+        let level: number
+        if (cellLevel && cellLevel > 0) {
+          level = cellLevel
+        } else if (activePatternRandom.value) {
+          level = Math.floor(Math.random() * 4) + 1
+        } else {
+          level = activeLevel.value
+        }
         next[targetC][targetR] = level
       }
     }
@@ -276,7 +286,27 @@ const updatePreview = (c: number, r: number) => {
   }
   const targets = buildPatternTargets(c, r)
   previewCells.value = targets
-  if (activePatternRandom.value) {
+  const perCellLevels = activePatternLevels.value
+  if (perCellLevels) {
+    // 收藏模板保留原强度预览
+    const map = new Map<string, number>()
+    const pattern = activePattern.value
+    const { offsetC, offsetR } = getPatternOffsets(pattern)
+    for (let rIndex = 0; rIndex < pattern.length; rIndex++) {
+      const row = pattern[rIndex]
+      if (!row) continue
+      for (let cIndex = 0; cIndex < row.length; cIndex++) {
+        if (!row[cIndex]) continue
+        const targetC = c + cIndex - offsetC
+        const targetR = r + rIndex - offsetR
+        const key = `${targetC},${targetR}`
+        if (!targets.has(key)) continue
+        const lv = perCellLevels[rIndex]?.[cIndex]
+        if (lv && lv > 0) map.set(key, lv)
+      }
+    }
+    previewLevels.value = map
+  } else if (activePatternRandom.value) {
     const map = new Map<string, number>()
     targets.forEach((key) => {
       map.set(key, Math.floor(Math.random() * 4) + 1)
@@ -303,10 +333,16 @@ const previewColor = (c: number, r: number) => {
   return level ? levelToColor(level) : levelToColor(activeLevel.value)
 }
 
-const handlePatternSelect = (pattern: boolean[][], level: number, random: boolean) => {
+const handlePatternSelect = (
+  pattern: boolean[][],
+  level: number,
+  random: boolean,
+  levels: number[][] | null = null,
+) => {
   activePattern.value = pattern
   activeLevel.value = level
   activePatternRandom.value = random
+  activePatternLevels.value = levels
   activeTool.value = 'pattern'
   previewEnabled.value = true
   showPatternDialog.value = false

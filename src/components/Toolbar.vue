@@ -18,6 +18,7 @@ const requestFillAll = inject<() => void>('requestFillAll')!;
 const activePattern = inject<Ref<boolean[][] | null>>('activePattern')!;
 const activePatternLevel = inject<Ref<number>>('activePatternLevel')!;
 const activePatternRandom = inject<Ref<boolean>>('activePatternRandom')!;
+const activePatternLevels = inject<Ref<number[][] | null>>('activePatternLevels')!;
 
 const { hasPermission } = usePermissionStore();
 const canBrush = computed(() => hasPermission('app:graph:brush'));
@@ -30,10 +31,11 @@ const canFill = computed(() => hasPermission('app:graph:fill'));
 
 const showPatternDialog = ref(false);
 
-const handlePatternSelect = (pattern: boolean[][], level: number, random: boolean) => {
+const handlePatternSelect = (pattern: boolean[][], level: number, random: boolean, levels: number[][] | null = null) => {
   activePattern.value = pattern;
   activePatternLevel.value = level;
   activePatternRandom.value = random;
+  activePatternLevels.value = levels;
   activeTool.value = 'pattern';
 };
 

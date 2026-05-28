@@ -41,6 +41,7 @@ const activeTool = inject<Ref<string>>('activeTool', ref('brush'));
 const activePattern = inject<Ref<boolean[][] | null>>('activePattern', ref(null));
 const activePatternLevel = inject<Ref<number>>('activePatternLevel', ref(4));
 const activePatternRandom = inject<Ref<boolean>>('activePatternRandom', ref(false));
+const activePatternLevels = inject<Ref<number[][] | null>>('activePatternLevels', ref(null));
 const clearSignal = inject<Ref<number>>('clearSignal', ref(0));
 const fillAllSignal = inject<Ref<number>>('fillAllSignal', ref(0));
 
@@ -941,21 +942,26 @@ const paint = (c: number, r: number) => {
   if (activePattern.value) {
     const pattern = activePattern.value;
     const patternLevel = clampLevel(activePatternLevel.value);
+    const perCellLevels = activePatternLevels.value;
     const { offsetC, offsetR } = getPatternOffsets(pattern);
 
     for (let rIndex = 0; rIndex < pattern.length; rIndex++) {
       const pRow = pattern[rIndex];
       if (!pRow) continue;
-      
+
       for (let cIndex = 0; cIndex < pRow.length; cIndex++) {
         if (pRow[cIndex]) {
           const targetC = c + cIndex - offsetC;
           const targetR = r + rIndex - offsetR;
-          
+
           const targetCell = gridCols.value[targetC]?.[targetR];
           // Only paint if the target cell exists and isn't a future date
           if (targetCell && !targetCell.isFuture) {
-            if (activePatternRandom.value) {
+            // 优先使用模板自带的每格强度（来自图案模板）
+            const cellLevel = perCellLevels?.[rIndex]?.[cIndex];
+            if (cellLevel && cellLevel > 0) {
+              targetCell.level = clampLevel(cellLevel);
+            } else if (activePatternRandom.value) {
               const previewKey = `${targetC},${targetR}`;
               const randomLevel =
                 previewRandomLevels.value.get(previewKey) ?? Math.floor(Math.random() * 4) + 1;
