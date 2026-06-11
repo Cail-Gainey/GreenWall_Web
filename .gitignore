@@ -8,14 +8,29 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 pnpm-lock.yaml
-node_modules
-dist
-dist-ssr
+node_modules/
 *.local
 
 # Env files
 .env
+.env.production
 .env.*.local
+
+# Local agent state
+.omc/
+
+# Build outputs
+release/
+dist/
+dist-ssr/
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+
+# Build resources
+build/*
+!build/icon.ico
 
 # Build caches
 .vite
