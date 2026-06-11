@@ -12,7 +12,10 @@
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview --strictPort",
     "electron:preview": "electron .",
-    "build:electron": "vite build --mode electron && electron-builder build"
+    "build:electron": "vite build --mode electron && electron-builder build",
+    "build:mac": "vite build --mode electron && electron-builder --mac",
+    "build:win": "vite build --mode electron && electron-builder --win",
+    "build:linux": "vite build --mode electron && electron-builder --linux"
   },
   "dependencies": {
     "@capacitor/core": "^8.3.0",
@@ -46,20 +49,37 @@
   "build": {
     "appId": "com.greenwall.app",
     "productName": "GreenWall",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "release"
     },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
     "mac": {
+      "icon": "src/assets/logo.png",
       "target": [
         "dmg"
       ]
     },
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         "nsis"
       ]
     },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "GreenWall"
+    },
     "linux": {
+      "icon": "src/assets/logo.png",
+      "category": "Utility",
       "target": [
         "AppImage"
       ]

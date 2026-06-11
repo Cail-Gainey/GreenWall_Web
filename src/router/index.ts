@@ -1,7 +1,7 @@
 /**
  * @file 应用路由配置：区分用户端与管理端布局，包含路由守卫。
  */
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { usePermissionStore } from '../stores/permission'
 
@@ -22,7 +22,9 @@ declare module 'vue-router' {
  * @description 创建并导出路由实例。
  */
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: import.meta.env.MODE === 'electron'
+    ? createWebHashHistory()
+    : createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
